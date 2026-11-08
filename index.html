@@ -30,6 +30,10 @@ h1,h2,h3{margin:0;line-height:1.35}
 .tag{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:3px;padding:0 6px;color:var(--sub)}
 .tx{color:var(--x);font-weight:700}.ty{color:var(--y);font-weight:700}
 .hide{display:none!important}
+.gas .demo-only{display:none!important}
+.gas-only{display:none!important}
+.gas .gas-only{display:inline-block!important}
+#notice{background:#fff1e0;border-bottom:1px solid #e8c9a0;padding:8px 20px;font-size:14px}
 
 /* ===== [S2] 外わく ===== */
 header.app{display:flex;align-items:center;gap:16px;padding:8px 20px;background:var(--paper);border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -157,14 +161,16 @@ svg text{font-family:inherit}
 <header class="app">
   <div class="logo">おりあい<small>2つの視点で検討する（仮称・模型）</small></div>
   <div class="demo" id="demo">
-    <span>デモ：</span>
-    <button data-role="student">生徒</button><button data-role="teacher">先生</button>
+    <span class="demo-only">デモ：</span>
+    <button class="demo-only" data-role="student">生徒</button><button class="demo-only" data-role="teacher">先生</button>
     <span style="margin-left:8px">見え方：</span>
     <button data-view="map">地図</button><button data-view="balance">天秤</button><button data-view="table">表</button>
-    <button data-reset="1" style="margin-left:8px">見本データを入れ直す</button>
+    <button class="demo-only" data-reset="1" style="margin-left:8px">見本データを入れ直す</button>
+    <button class="gas-only" id="teacherBtn" type="button" style="margin-left:8px">先生の方はこちら</button>
   </div>
 </header>
-<div style="background:#fff8e1;border-bottom:1px solid #e6d9a8;padding:6px 20px;font-size:13px;line-height:1.5"><b>お試し版（見本データ）</b>　書いたものはこのブラウザの中だけに保存され、どこにも送られません。右上の「デモ」で生徒と先生を切りかえ、「見本データを入れ直す」で最初に戻ります。<span style="color:#59636e">（版 2026/11/8 14:20:40）</span></div>
+<div id="notice" class="hide"></div>
+<div style="background:#fff8e1;border-bottom:1px solid #e6d9a8;padding:6px 20px;font-size:13px;line-height:1.5"><b>お試し版（見本データ）</b>　書いたものはこのブラウザの中だけに保存され、どこにも送られません。右上の「デモ」で生徒と先生を切りかえ、「見本データを入れ直す」で最初に戻ります。<span style="color:#59636e">（版 2026/11/8 22:45:19）</span></div>
 <main id="app"></main>
 <div id="drawer"></div>
 <div id="dbg"><button type="button" onclick="this.parentNode.classList.toggle('open')">ログ</button><pre id="dbglog"></pre></div>
@@ -284,6 +290,10 @@ function seedDevs(){
 
 /* ===== [S9] Api 層（環境判定はここだけ。google.script.run は _run だけが呼ぶ） ===== */
 const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
+/** サーバーが doGet で置きかえる印（ふつう／アカウント不明） */
+const ROLE_MARK = 'OX_ROLE_STUDENT';
+function notice(msg){ const n = document.getElementById('notice'); n.textContent = msg || ''; n.classList.toggle('hide', !msg); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const KEY = 'oriai.v0';
 const MockApi = {
   _db(){ let d = null; try { d = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
@@ -291,9 +301,8 @@ const MockApi = {
     if (!d.projects) { d.projects = JSON.parse(JSON.stringify(SEED_PROJECTS)); d.devs = seedDevs(); this._save(d); } return d; },
   _save(d){ localStorage.setItem(KEY, JSON.stringify(d)); },
   async reset(){ localStorage.removeItem(KEY); this._db(); return { success:true }; },
-  async getTopics(){ return { success:true, topics: this._db().topics.filter(t => t.open) }; },
+  async getLearnHome(){ const d = this._db(); return { success:true, topics: d.topics.filter(t => t.open), list: d.responses.filter(r => r.email === 'me@example.com').map(r => ({topicId:r.topicId, status:r.status})) }; },
   async getMyResponse(topicId){ const d = this._db(); return { success:true, response: d.responses.find(r => r.topicId === topicId && r.email === 'me@example.com') || null }; },
-  async getMyList(){ const d = this._db(); return { success:true, list: d.responses.filter(r => r.email === 'me@example.com').map(r => ({topicId:r.topicId, status:r.status})) }; },
   async saveResponse(r){ const d = this._db(); r.email = 'me@example.com'; r.responseId = r.topicId + ':me'; r.updatedAt = stamp();
     const i = d.responses.findIndex(x => x.responseId === r.responseId); if (i >= 0) d.responses[i] = r; else d.responses.push(r); this._save(d); return { success:true, updatedAt:r.updatedAt }; },
   async teacherTopics(){ const d = this._db(); return { success:true, topics: d.topics.map(t => Object.assign({}, t, {
@@ -303,9 +312,8 @@ const MockApi = {
   async saveTopic(t){ const d = this._db(); if (!t.topicId) t.topicId = 'T' + Date.now(); t.updatedAt = stamp();
     const i = d.topics.findIndex(x => x.topicId === t.topicId); if (i >= 0) d.topics[i] = Object.assign(d.topics[i], t); else d.topics.push(Object.assign({example:null}, t)); this._save(d); return { success:true, topicId:t.topicId }; },
   /* --- 開発モード --- */
-  async getProjects(){ return { success:true, projects: this._db().projects.filter(p => p.open) }; },
+  async getDevHome(){ const d = this._db(); return { success:true, projects: d.projects.filter(p => p.open), list: d.devs.filter(x => x.email === 'me@example.com') }; },
   async getMyDev(id){ return { success:true, dev: this._db().devs.find(x => x.projectId === id && x.email === 'me@example.com') || null }; },
-  async getMyDevList(){ return { success:true, list: this._db().devs.filter(x => x.email === 'me@example.com').map(x => ({ projectId:x.projectId, stage:devStage(x) })) }; },
   async saveDev(v){ const d = this._db(); v.email = 'me@example.com'; v.devId = v.projectId + ':me'; v.updatedAt = stamp();
     const i = d.devs.findIndex(x => x.devId === v.devId); if (i >= 0) d.devs[i] = v; else d.devs.push(v); this._save(d); return { success:true, updatedAt:v.updatedAt }; },
   async teacherProjects(){ const d = this._db(); return { success:true, projects: d.projects.map(p => { const ds = d.devs.filter(x => x.projectId === p.projectId);
@@ -315,13 +323,34 @@ const MockApi = {
     const i = d.projects.findIndex(x => x.projectId === p.projectId); if (i >= 0) d.projects[i] = Object.assign(d.projects[i], p); else d.projects.push(p); this._save(d); return { success:true, projectId:p.projectId }; }
 };
 const GasApi = {
-  /** 3秒たっても返事がなければ画面に知らせる（GAS 側で例外が出たときの永久ローディング対策） */
-  _run(fn, ...args){ return new Promise(resolve => {
-    const timer = setTimeout(() => dlog('3秒たっても返事がありません: ' + fn), 3000);
-    google.script.run.withSuccessHandler(r => { clearTimeout(timer); resolve(r); })
-      .withFailureHandler(e => { clearTimeout(timer); dlog(fn + ' 失敗: ' + e.message); resolve({ success:false, message:e.message }); })[fn](...args); }); }
+  /**
+   * サーバーを呼ぶ唯一の場所。3秒で「時間がかかっています」、30秒で失敗扱い。
+   * 同時に多くの人が開いたときに断られることがあるので、通信の失敗は間をあけて2回までやり直す。
+   */
+  _call(fn, args){ return new Promise(resolve => {
+    let done = false, slowShown = false;
+    const finish = r => { if (done) return; done = true; clearTimeout(slow); clearTimeout(limit); if (slowShown) notice(''); resolve(r); };
+    const slow = setTimeout(() => { dlog('3秒たっても返事がありません: ' + fn); slowShown = true; notice('通信に時間がかかっています。そのまま少し待ってください。'); }, 3000);
+    const limit = setTimeout(() => finish({ success:false, message:'30秒待っても返事がありませんでした', network:true }), 30000);
+    google.script.run.withSuccessHandler(r => finish(r || { success:false, message:'返事が空でした' }))
+      .withFailureHandler(e => finish({ success:false, message:e.message, network:true }))[fn](...args); }); },
+  async _run(fn, ...args){
+    let r;
+    for (let i = 0; i < 3; i++) {
+      r = await GasApi._call(fn, args);
+      if (r.success || !r.network) break;
+      dlog(fn + ' やり直し ' + (i + 1) + ': ' + r.message);
+      await sleep(1500 + Math.random() * 2500 * (i + 1));
+    }
+    if (r.auth) { dlog(fn + ' 入り直し'); setTeacher(''); render(); notice('先生の画面の入場の期限が切れました。右上の「先生の方はこちら」から入り直してください。'); return r; }
+    if (!r.success) { dlog(fn + ' 失敗: ' + r.message); GasApi.failShown = true; notice('うまくいきませんでした：' + r.message); }
+    else if (GasApi.failShown) { GasApi.failShown = false; notice(''); }
+    return r;
+  }
 };
-['getTopics','getMyResponse','getMyList','saveResponse','teacherTopics','teacherResponses','saveTopic','getProjects','getMyDev','getMyDevList','saveDev','teacherProjects','teacherDevs','saveProject'].forEach(f => GasApi[f] = (...a) => GasApi._run(f, ...a));
+['getLearnHome','getDevHome','getMyResponse','saveResponse','getMyDev','saveDev','teacherLogin'].forEach(f => GasApi[f] = (...a) => GasApi._run(f, ...a));
+/* 先生の API には、入ったときにもらった入場券を先頭につけて送る */
+['teacherTopics','teacherResponses','saveTopic','teacherProjects','teacherDevs','saveProject'].forEach(f => GasApi[f] = (...a) => GasApi._run(f, S.t.token, ...a));
 const Api = IS_GAS ? GasApi : MockApi;
 dlog('Api: ' + (IS_GAS ? 'GasApi' : 'MockApi（この端末の localStorage）'));
 
@@ -345,6 +374,29 @@ function wText(t, w){ const l = weightLabels(t).find(x => x.w === w); return l ?
 const S = { role:'student', mode:'dev', p:null, d:null, dstep:0, projects:[], view:'map', screen:'home', topics:[], topic:null, r:null, step:0, me:{classCode:'', seat:'', name:''}, myList:[], saveTimer:null, savedAt:'' ,
   t:{ topics:[], sel:null, resps:[], tab:'map', projects:[], psel:null, devs:[] } };
 try { Object.assign(S.me, JSON.parse(localStorage.getItem('oriai.me') || '{}')); S.view = localStorage.getItem('oriai.view') || 'map'; S.mode = localStorage.getItem('oriai.mode') || 'dev'; } catch(e){}
+
+/* ===== [S11b] 保存の順番 ===== */
+const SAVE_DELAY = IS_GAS ? 5000 : 700;
+let saveChain = Promise.resolve();
+/** 保存を1列に並べる。前の保存が終わってから次を送るので、古い内容で上書きされない */
+function enqueueSave(fn){ saveChain = saveChain.then(fn, fn); return saveChain; }
+function scheduleSave(fn, ms){ clearTimeout(S.saveTimer); S.savePending = fn; S.saveTimer = setTimeout(flushSave, ms === undefined ? SAVE_DELAY : ms); }
+/** 待っている保存があれば今すぐ送る（段の移動・一覧へ戻る・画面を閉じるとき） */
+function flushSave(){ clearTimeout(S.saveTimer); const fn = S.savePending; S.savePending = null; if (fn) enqueueSave(fn); return saveChain; }
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushSave(); });
+/** 保存の結果を画面に出す。失敗したら少しあけて自動でやり直す */
+function afterSave(res, fn, target){
+  if (res && res.success) { S.savedAt = '保存しました ' + res.updatedAt.slice(11); target.updatedAt = res.updatedAt; }
+  else { S.savedAt = '保存できていません（自動でやり直します）'; if (!S.savePending) scheduleSave(fn, 8000 + Math.random() * 4000); }
+  const el = document.getElementById('saved'); if (el) el.textContent = S.savedAt;
+  return !!(res && res.success);
+}
+/** 組の書き方のゆれ（全角など）をそろえて、配るクラスに入っているかを見る。自分の組が空なら全部見せる */
+function classMatch(x){
+  const norm = v => String(v || '').normalize('NFKC').replace(/\s/g, '');
+  const mine = norm(S.me.classCode), to = norm(x.classCode);
+  return !mine || !to || to.split(/[、,]/).includes(mine);
+}
 
 /* ===== [S12] 見え方：地図・天秤・表（B と C の右側。先生画面の地図もここ） ===== */
 function viewSVGMap(t, options, w, opts){
@@ -429,8 +481,9 @@ function viewPanel(t, options, w){
 
 /* ===== [S13] 生徒の画面 ===== */
 async function studentHome(){
-  const [a, b] = await Promise.all([Api.getTopics(), Api.getMyList()]);
-  S.topics = a.topics || []; S.myList = b.list || [];
+  await flushSave();
+  const a = await Api.getLearnHome();
+  S.topics = (a.topics || []).filter(classMatch); S.myList = a.list || [];
   const st = id => { const m = S.myList.find(x => x.topicId === id); return m ? m.status : 'まだ'; };
   app.innerHTML = modeTabs() + `
     <div class="who"><div><label>組</label><input class="f" id="mc" value="${esc(S.me.classCode)}" placeholder="1-1"></div>
@@ -445,12 +498,15 @@ async function studentHome(){
   ['mc','ms','mn'].forEach(id => document.getElementById(id).oninput = () => {
     S.me = { classCode: mc.value.trim(), seat: String(ms.value).trim(), name: mn.value.trim() };
     try { localStorage.setItem('oriai.me', JSON.stringify(S.me)); } catch(e){} });
+  mc.onchange = () => render();
   app.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openTopic(b.dataset.open));
 }
 async function openTopic(id){
   if (!S.me.name) { alert('先に組・番号・名前を書いてください'); document.getElementById('mn').focus(); return; }
   S.topic = S.topics.find(t => t.topicId === id);
+  await flushSave();
   const res = await Api.getMyResponse(id);
+  if (!res.success) return; // 読めないまま空の用紙を開くと、保存で前の内容を消してしまう
   S.r = res.response || { topicId:id, options:[{name:'',note:''},{name:'',note:''}], user:'', situation:'', weight:null, chosen:null, reason:'', idea:'', status:'書きかけ' };
   S.step = res.response ? 1 : 0; S.screen = 'work'; S.savedAt = res.response ? '保存ずみ ' + res.response.updatedAt.slice(11) : '';
   render();
@@ -471,7 +527,8 @@ function studentWork(){
     <div class="work"><div id="left"></div><div id="right"></div></div>`;
   back.onclick = () => { S.screen = 'home'; render(); };
   ex.onclick = () => showExample(t);
-  submit.onclick = async () => { r.status = '提出'; await save(true); alert('提出しました。あとから直して出し直すこともできます。'); render(); };
+  submit.onclick = async () => { const before = r.status; r.status = '提出'; S.savePending = null; clearTimeout(S.saveTimer); submit.disabled = true;
+    if (await enqueueSave(save)) alert('提出しました。あとから直して出し直すこともできます。'); else { r.status = before; alert('提出できませんでした。少し待ってから、もう一度押してください。'); } render(); };
   app.querySelectorAll('[data-step]').forEach(b => b.onclick = () => { S.step = +b.dataset.step; render(); });
   drawStep();
 }
@@ -534,16 +591,13 @@ function drawStep(){
   document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { S.step = Math.max(0, Math.min(3, +b.dataset.go)); render(); });
 }
 /** 入力のたびに 0.6 秒待ってから保存（書きかけでも消えない） */
-function touch(quick){ document.getElementById('saved').textContent = '保存中…'; clearTimeout(S.saveTimer); S.saveTimer = setTimeout(() => save(false), quick ? 900 : 600);
+function touch(quick){ document.getElementById('saved').textContent = '保存中…'; scheduleSave(save, IS_GAS ? undefined : (quick ? 900 : 600));
   const sb = document.getElementById('submit'); if (sb) sb.disabled = !(stepDone(3) && stepDone(2));
   document.querySelectorAll('.steps [data-step]').forEach(b => { const i = +b.dataset.step, has = !!b.querySelector('.done');
     if (stepDone(i) && !has) b.insertAdjacentHTML('beforeend', ' <span class="done">済</span>'); if (!stepDone(i) && has) b.querySelector('.done').remove(); }); }
-async function save(force){
-  const r = Object.assign({}, S.r, { classCode:S.me.classCode, seat:S.me.seat, name:S.me.name });
-  const res = await Api.saveResponse(r);
-  if (res.success) { S.savedAt = '保存しました ' + res.updatedAt.slice(11); S.r.updatedAt = res.updatedAt; }
-  else S.savedAt = '保存できませんでした（ログを見てください）';
-  const el = document.getElementById('saved'); if (el) el.textContent = S.savedAt;
+async function save(){
+  const target = S.r, r = Object.assign({}, target, { classCode:S.me.classCode, seat:S.me.seat, name:S.me.name });
+  return afterSave(await Api.saveResponse(r), save, target);
 }
 function showExample(t){
   const e = t.example;
@@ -651,9 +705,10 @@ function markSteps(done){
 }
 
 async function studentDevHome(){
-  const [a, b] = await Promise.all([Api.getProjects(), Api.getMyDevList()]);
-  S.projects = a.projects || []; const mine = b.list || [];
-  const st = id => { const m = mine.find(x => x.projectId === id); return m ? 'いま：' + m.stage : 'まだ書いていない'; };
+  await flushSave();
+  const a = await Api.getDevHome();
+  S.projects = (a.projects || []).filter(classMatch); const mine = a.list || [];
+  const st = id => { const m = mine.find(x => x.projectId === id); return m ? 'いま：' + devStage(m) : 'まだ書いていない'; };
   app.innerHTML = modeTabs() + `
     <div class="who"><div><label>組</label><input class="f" id="mc" value="${esc(S.me.classCode)}" placeholder="1-1"></div>
       <div><label>番号</label><input class="f" id="ms" value="${esc(S.me.seat)}" inputmode="numeric"></div>
@@ -666,12 +721,15 @@ async function studentDevHome(){
   ['mc','ms','mn'].forEach(id => document.getElementById(id).oninput = () => {
     S.me = { classCode: mc.value.trim(), seat: String(ms.value).trim(), name: mn.value.trim() };
     try { localStorage.setItem('oriai.me', JSON.stringify(S.me)); } catch(e){} });
+  mc.onchange = () => render();
   app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => openProject(b.dataset.p));
 }
 async function openProject(id){
   if (!S.me.name) { alert('先に組・番号・名前を書いてください'); document.getElementById('mn').focus(); return; }
   S.p = S.projects.find(p => p.projectId === id);
+  await flushSave();
   const res = await Api.getMyDev(id);
+  if (!res.success) return; // 読めないまま空の用紙を開くと、保存で前の内容を消してしまう
   S.d = res.dev || newDev(id);
   S.dstep = res.dev ? devStageKey(S.d) : 0; S.screen = 'dev';
   S.savedAt = res.dev ? '保存ずみ ' + res.dev.updatedAt.slice(11) : '';
@@ -686,28 +744,27 @@ function devWork(){
     <nav class="steps">${DEV_STEPS.map((n,i) => `<button data-step="${i}" class="${S.dstep === i ? 'on' : ''}"><b>${i}</b>${n}${devDone(i) ? ' <span class="done">済</span>' : ''}</button>`).join('')}</nav>
     <div class="work"><div id="left"></div><div id="right"></div></div>`;
   back.onclick = () => { S.screen = 'home'; render(); };
-  submit.onclick = async () => { d.status = '課題提出'; await devSave(); alert('課題を提出しました。このあとは「開発の記録」に、試作のたびに書き足していきます。'); S.dstep = 5; render(); };
+  submit.onclick = async () => { const before = d.status; d.status = '課題提出'; S.savePending = null; clearTimeout(S.saveTimer); submit.disabled = true;
+    if (await enqueueSave(devSave)) { alert('課題を提出しました。このあとは「開発の記録」に、試作のたびに書き足していきます。'); S.dstep = 5; } else { d.status = before; alert('提出できませんでした。少し待ってから、もう一度押してください。'); } render(); };
   app.querySelectorAll('[data-step]').forEach(b => b.onclick = () => { S.dstep = +b.dataset.step; render(); });
   devStep();
 }
 /** 入力のたびに 0.7 秒待ってから保存 */
 function devTouch(){
   const el = document.getElementById('saved'); if (el) el.textContent = '保存中…';
-  clearTimeout(S.saveTimer); S.saveTimer = setTimeout(devSave, 700);
+  scheduleSave(devSave);
   const sb = document.getElementById('submit'); if (sb) sb.disabled = !devDone(4);
   markSteps(i => devDone(i));
 }
 async function devSave(){
-  const v = Object.assign({}, S.d, { classCode:S.me.classCode, seat:S.me.seat, name:S.me.name });
-  const res = await Api.saveDev(v);
-  if (res.success) { S.savedAt = '保存しました ' + res.updatedAt.slice(11); S.d.updatedAt = res.updatedAt; }
-  else S.savedAt = '保存できませんでした（ログを見てください）';
-  const el = document.getElementById('saved'); if (el) el.textContent = S.savedAt;
+  const target = S.d, v = Object.assign({}, target, { classCode:S.me.classCode, seat:S.me.seat, name:S.me.name });
+  return afterSave(await Api.saveDev(v), devSave, target);
 }
 function composeTask(d){
   const c = d.chosen !== null && d.options[d.chosen] ? d.options[d.chosen].name : '（選んだ案）';
   const now = (d.now || '（現状）').replace(/[。．.]+$/, '');
-  return `${d.user || '（使う人）'}が${d.scene || '（場面）'}に、${now}という困りごとを解決するために、` +
+  const scene = d.scene || '（場面）', at = /[でに、]$/.test(scene) ? scene.replace(/、$/, '') + '、' : scene + 'に、';  // 「玄関で」→「玄関で、」／「取るとき」→「取るときに、」
+  return `${d.user || '（使う人）'}が${at}${now}という困りごとを解決するために、` +
     `${d.axisX}は「${d.goalX || '（目標）'}」を守りつつ、${d.axisY}は「${d.goalY || '（目標）'}」をめざした、${c}をつくる。`;
 }
 /** 課題文の点検（入っているかだけを見る。良し悪しは先生と本人が見る） */
@@ -840,7 +897,7 @@ function devStep(){
           <div class="row"><span class="ty">いまの${esc(d.axisY)}</span><div class="score sy">${[1,2,3,4,5].map(n => `<button data-cs="${i}" data-a="y" data-v="${n}" class="${v.y === n ? 'on' : ''}">${n}</button>`).join('')}</div><span></span></div>
           <label class="field"><span>確かめた結果（目標と比べて）</span><textarea data-c="${i}" data-k="result" placeholder="例：倒れなかったが、びんが6本しか入らない">${esc(v.result)}</textarea></label>
           <label class="field"><span>次に直すこと</span><input data-c="${i}" data-k="next" value="${esc(v.next)}" placeholder="例：段の奥行きを2cm広げる"></label></div>`).join('')}</div>
-        <button class="quiet" id="addc">＋ 版を足す（試作・製作のたびに）</button>
+        <button class="quiet" id="addc" ${d.cycles.length >= 20 ? 'disabled' : ''}>＋ 版を足す（試作・製作のたびに。20まで）</button>
         <div class="nav"><button class="quiet" data-go="4">← もどる</button><span></span></div></div>`;
       Rt.innerHTML = `<div class="panel"><h3>計画からの動き</h3>${viewSVGMap(ax, [], null, { path: devPath(d) })}
         <p class="muted" style="margin:6px 0 0">点線の丸＝計画（選んだ案）。黒い丸＝版ごとの「いまの点」。右上に向かっていれば両方が良くなっている。片方だけ動いていたら、もう片方が下がっていないか見よう。</p></div>`;
@@ -920,11 +977,41 @@ function projectEditor(p){
     const res = await Api.saveProject(np); drawer.innerHTML = ''; S.t.psel = res.projectId; teacherDevHome(); };
 }
 
+/* ===== [S14b] 先生の画面に入る（パスワード。本番だけ。タブを閉じると出たことになる） ===== */
+const TOKEN_KEY = 'oriai.teacher';
+function loadTeacherToken(){ try { S.t.token = sessionStorage.getItem(TOKEN_KEY) || ''; } catch(e){ S.t.token = ''; } return S.t.token; }
+function setTeacher(token){
+  S.t.token = token || '';
+  try { if (token) sessionStorage.setItem(TOKEN_KEY, token); else sessionStorage.removeItem(TOKEN_KEY); } catch(e){}
+  S.role = token ? 'teacher' : 'student'; S.screen = 'home'; S.t.sel = null; S.t.psel = null;
+}
+function showLogin(){
+  drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc" type="button">とじる</button><h3 style="font-size:17px">先生の画面に入る</h3>
+    <form id="lf" style="margin-top:12px"><label class="field"><span>パスワード</span><input id="lp" type="password" autocomplete="off"></label>
+      <p id="lm" style="color:var(--y);font-size:14px;margin:8px 0 0" role="status"></p>
+      <div class="nav"><span></span><button class="main" id="ls" type="submit">入る</button></div></form></div></div>`;
+  dc.onclick = () => drawer.innerHTML = '';
+  drawer.firstChild.onclick = ev => { if (ev.target === drawer.firstChild) drawer.innerHTML = ''; };
+  lp.focus();
+  lf.onsubmit = async ev => {
+    ev.preventDefault();
+    if (!lp.value.trim()) { lm.textContent = 'パスワードを入れてください。'; return; }
+    ls.disabled = true; lm.textContent = '確かめています…';
+    const r = await Api.teacherLogin(lp.value);
+    GasApi.failShown = false; notice('');
+    if (r.success) { setTeacher(r.token); render(); return; }
+    if (!document.getElementById('lm')) return;
+    lm.textContent = r.message; ls.disabled = false; lp.value = ''; lp.focus();
+  };
+}
+
 /* ===== [S15] 描画の入口・デモ切替 ===== */
 function render(){
   document.querySelectorAll('#demo [data-role]').forEach(b => b.classList.toggle('on', b.dataset.role === S.role));
   document.querySelectorAll('#demo [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === S.view));
+  document.getElementById('teacherBtn').textContent = S.role === 'teacher' ? '先生の画面を出る' : '先生の方はこちら';
   drawer.innerHTML = '';
+  flushSave();
   if (S.role === 'teacher') return S.mode === 'dev' ? teacherDevHome() : teacherHome();
   if (S.screen === 'work') return studentWork();
   if (S.screen === 'dev') return devWork();
@@ -935,8 +1022,19 @@ document.querySelectorAll('#demo [data-view]').forEach(b => b.onclick = () => { 
   if (S.role === 'student' && S.screen === 'work') { render(); } else render(); });
 document.querySelector('#demo [data-reset]').onclick = async () => { if (!confirm('見本データを入れ直します。この端末で書いたものは消えます。')) return;
   await MockApi.reset(); S.screen = 'home'; S.t.sel = null; S.t.psel = null; render(); };
-if (IS_GAS) document.querySelector('#demo [data-reset]').classList.add('hide');
-render();
+if (IS_GAS) {
+  document.body.classList.add('gas');
+  document.querySelector('header.app .logo small').textContent = '2つの視点で検討する';
+  teacherBtn.onclick = () => { if (S.role === 'teacher') { setTeacher(''); render(); } else showLogin(); };
+}
+app.innerHTML = '<p class="muted">読み込み中…</p>';
+if (IS_GAS && /OX_ROLE_NOUSER$/.test(ROLE_MARK)) {
+  app.innerHTML = '<div class="panel"><h3>アカウントを確認できませんでした</h3><p class="lead">学校の Google アカウントで開いてください。ほかのアカウントでもログインしているときは、シークレットウィンドウで開き直してください。</p></div>';
+  teacherBtn.remove();
+} else {
+  if (IS_GAS && loadTeacherToken()) S.role = 'teacher';
+  render();
+}
 </script>
 </body>
 </html>
