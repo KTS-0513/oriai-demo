@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【お試し版】おりあい（仮称）── 2つの視点で検討する</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ===== [S1] 色と土台（§11：影なし・角6px・ピルなし・色は区分と状態だけ） ===== */
+:root{
+  --ink:#1f2328; --sub:#59636e; --line:#d0d7de; --bg:#f6f6f3; --paper:#fff;
+  --x:#1f6feb; --x-weak:#e3edfd; --y:#c96a12; --y-weak:#fbeedd;
+  --ok:#1a7f37; --warn:#9a6700; --r:6px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100vh;min-height:100dvh;background:var(--bg);color:var(--ink);
+  font-family:"BIZ UDPGothic",system-ui,sans-serif;font-size:15px;line-height:1.6}
+button,input,textarea,select{font:inherit;color:inherit}
+input,textarea,select{font-size:16px;border:1px solid var(--line);border-radius:var(--r);padding:6px 9px;background:#fff;width:100%}
+textarea{resize:vertical;min-height:54px}
+input:focus,textarea:focus{outline:2px solid var(--ink);outline-offset:-1px}
+button{cursor:pointer;min-height:40px;border-radius:var(--r);border:1px solid var(--ink);background:#fff;padding:6px 14px}
+button.main{background:var(--ink);color:#fff}
+button.quiet{border-color:var(--line)}
+button:disabled{opacity:.4;cursor:default}
+h1,h2,h3{margin:0;line-height:1.35}
+.muted{color:var(--sub);font-size:13px}
+.tag{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:3px;padding:0 6px;color:var(--sub)}
+.tx{color:var(--x);font-weight:700}.ty{color:var(--y);font-weight:700}
+.hide{display:none!important}
+
+/* ===== [S2] 外わく ===== */
+header.app{display:flex;align-items:center;gap:16px;padding:8px 20px;background:var(--paper);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header.app .logo{font-weight:700;font-size:18px}
+header.app .logo small{font-weight:400;color:var(--sub);font-size:12px;margin-left:6px}
+.demo{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:13px;color:var(--sub);flex-wrap:wrap}
+.demo button{min-height:32px;padding:2px 10px;font-size:13px;border-color:var(--line)}
+.demo button.on{border-color:var(--ink);background:var(--ink);color:#fff}
+main{max-width:1366px;margin:0 auto;padding:16px 20px}
+
+/* ===== [S3] 生徒：はじめの画面 ===== */
+.who{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-bottom:16px}
+.who label{font-size:13px;color:var(--sub)}
+.who .f{width:90px}.who .n{width:200px}
+.topics{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.topic{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;text-align:left;min-height:0;display:flex;flex-direction:column;gap:6px;border-color:var(--line)}
+.topic:hover{border-color:var(--ink)}
+.topic .axes{font-size:14px}
+.topic .state{font-size:12px;color:var(--sub)}
+
+/* ===== [S4] 生徒：書く画面 ===== */
+.workhead{display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+.workhead h2{font-size:18px}
+.workhead .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.saved{font-size:12px;color:var(--sub);min-width:120px;text-align:right}
+.steps{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:12px;overflow-x:auto}
+.steps button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:6px 14px;white-space:nowrap;color:var(--sub)}
+.steps button.on{border-bottom-color:var(--ink);color:var(--ink);font-weight:700}
+.steps b{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border:1px solid currentColor;border-radius:3px;font-size:12px;margin-right:6px}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:16px;align-items:start}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.panel + .panel{margin-top:12px}
+.panel h3{font-size:15px;margin-bottom:8px}
+.lead{margin:0 0 10px}
+.okline{font-size:12px;color:var(--sub);margin:-4px 0 10px}
+.axisbox{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.axisbox > div{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.axisbox .ax{border-left:4px solid var(--x)}.axisbox .ay{border-left:4px solid var(--y)}
+.opt{display:grid;grid-template-columns:30px 1fr 1.6fr 40px;gap:8px;align-items:center;margin-bottom:8px}
+.num{font-weight:700;font-size:16px;text-align:center}
+.rate{border-top:1px solid var(--line);padding:10px 0}
+.rate:first-of-type{border-top:0;padding-top:0}
+.rate .row,.cycle .row{display:grid;grid-template-columns:96px auto 1fr;gap:8px;align-items:center;margin-top:6px}
+.score{display:flex;gap:4px}
+.score button{min-width:40px;min-height:40px;padding:0;border-color:var(--line)}
+.score.sx button.on{background:var(--x);border-color:var(--x);color:#fff}
+.score.sy button.on{background:var(--y);border-color:var(--y);color:#fff}
+.weights{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.weights button{min-height:52px;font-size:13px;line-height:1.3;border-color:var(--line);padding:4px}
+.weights button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.bestmsg{margin:10px 0;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r);background:#fafafa}
+.choose{display:flex;flex-direction:column;gap:6px}
+.choose label{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;cursor:pointer;min-height:44px}
+.choose label.on{border-color:var(--ink)}
+.choose input{width:auto}
+.field{margin-top:10px}
+.field > span{display:block;font-size:13px;color:var(--sub);margin-bottom:3px}
+.nav{display:flex;justify-content:space-between;margin-top:12px}
+.done{border:1px solid var(--ok);color:var(--ok);border-radius:3px;font-size:12px;padding:0 6px}
+
+/* ===== [S5] 見え方（地図・天秤・表） ===== */
+.viewhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+svg text{font-family:inherit}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:6px 6px;text-align:left;vertical-align:top}
+.tbl th{font-size:12px;color:var(--sub);font-weight:400}
+.tbl tr.best td{background:#f3f3f0}
+.tbl td:nth-child(-n+2){white-space:nowrap}
+.tbl .n{text-align:center;font-weight:700}
+
+/* ===== [S6] 記入例・詳細の引き出し ===== */
+.drawer{position:fixed;inset:0;background:rgba(0,0,0,.25);display:flex;justify-content:flex-end;z-index:20}
+.drawer > div{width:min(560px,100%);height:100%;background:var(--paper);overflow:auto;padding:16px 20px;border-left:1px solid var(--line)}
+.drawer .close{float:right}
+
+/* ===== [S7] 先生画面 ===== */
+.tgrid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
+.tlist h2{white-space:nowrap}
+.panel svg{max-width:480px;display:block}
+.tlist button{display:block;width:100%;text-align:left;border-color:var(--line);margin-bottom:6px;padding:8px 12px}
+.tlist button.on{border-color:var(--ink);border-width:2px;padding:7px 11px}
+.kpis{display:flex;gap:20px;margin:6px 0 10px;font-size:14px}
+.kpis b{font-size:20px}
+.cls{display:grid;grid-template-columns:420px minmax(0,1fr);gap:16px;align-items:start}
+.bars{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;align-items:end;height:90px;margin-top:6px}
+.bars div{background:var(--ink);min-height:2px;border-radius:2px 2px 0 0}
+.barl{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;font-size:11px;color:var(--sub);text-align:center;line-height:1.3}
+.tbl tr.click{cursor:pointer}.tbl tr.click:hover td{background:#f3f3f0}
+.form2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form2 .wide{grid-column:1 / -1}
+
+/* ===== [S16] 開発モード ===== */
+.modes{display:flex;border-bottom:1px solid var(--line);margin:-4px 0 14px}
+.modes button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:8px 18px;color:var(--sub);font-size:15px}
+.modes button.on{border-bottom-color:var(--ink);color:var(--ink);font-weight:700}
+.cands{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.cands button{min-height:40px;border-color:var(--line)}
+.cands.cx button.on{background:var(--x);border-color:var(--x);color:#fff}
+.cands.cy button.on{background:var(--y);border-color:var(--y);color:#fff}
+.constraint{border-left:4px solid var(--line);padding:6px 12px;background:#fafafa;margin:10px 0}
+.taskbox{border:1px solid var(--ink);border-radius:var(--r);padding:10px 12px;font-size:16px;margin:8px 0}
+.checks{list-style:none;padding:0;margin:8px 0 0;font-size:14px}
+.checks li{padding:2px 0}.checks .y{color:var(--ok)}.checks .n{color:var(--sub)}
+.cycle{border-top:1px solid var(--line);padding:10px 0}
+.cycle:first-of-type{border-top:0}
+.pair{display:grid;grid-template-columns:1fr 110px 44px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px}
+.pbar{background:#ececea;height:10px;border-radius:2px}.pbar div{background:var(--ink);height:100%;border-radius:2px}
+
+/* ===== [S0] デバッグコンソール ===== */
+#dbg{position:fixed;left:8px;bottom:8px;z-index:30}
+#dbg button{min-height:28px;font-size:12px;padding:2px 8px;border-color:var(--line);background:#fff}
+#dbg pre{display:none;max-width:560px;max-height:240px;overflow:auto;background:#fff;border:1px solid var(--line);padding:8px;font-size:12px;white-space:pre-wrap;margin:4px 0 0}
+#dbg.open pre{display:block}
+
+@media (max-width:1000px){
+  .work,.tgrid,.cls{grid-template-columns:1fr}
+  .opt{grid-template-columns:24px 1fr 40px}.opt .note{grid-column:2 / 3}
+  .rate .row{grid-template-columns:1fr}
+  .axisbox{grid-template-columns:1fr}
+  .weights button{font-size:12px}
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="logo">おりあい<small>2つの視点で検討する（仮称・模型）</small></div>
+  <div class="demo" id="demo">
+    <span>デモ：</span>
+    <button data-role="student">生徒</button><button data-role="teacher">先生</button>
+    <span style="margin-left:8px">見え方：</span>
+    <button data-view="map">地図</button><button data-view="balance">天秤</button><button data-view="table">表</button>
+    <button data-reset="1" style="margin-left:8px">見本データを入れ直す</button>
+  </div>
+</header>
+<div style="background:#fff8e1;border-bottom:1px solid #e6d9a8;padding:6px 20px;font-size:13px;line-height:1.5"><b>お試し版（見本データ）</b>　書いたものはこのブラウザの中だけに保存され、どこにも送られません。右上の「デモ」で生徒と先生を切りかえ、「見本データを入れ直す」で最初に戻ります。<span style="color:#59636e">（版 2026/11/8 14:20:40）</span></div>
+<main id="app"></main>
+<div id="drawer"></div>
+<div id="dbg"><button type="button" onclick="this.parentNode.classList.toggle('open')">ログ</button><pre id="dbglog"></pre></div>
+
+<script>
+/* ===== [S0] 画面内デバッグコンソール（Chromebook は検証ツールが開けないため） ===== */
+var DBG = [];
+function dlog(m){ DBG.push(new Date().toLocaleTimeString() + ' ' + m); var p = document.getElementById('dbglog'); if (p) p.textContent = DBG.slice(-80).join('\n'); }
+window.onerror = function(msg, src, line){ dlog('エラー: ' + msg + ' (' + line + ')'); };
+
+/* ===== [S8] 見本データ（実名は使わない） ===== */
+const SEED_TOPICS = [
+  { topicId:'T1', title:'自転車用ヘルメット', kind:'評価', classCode:'', open:true,
+    scene:'毎日の自転車通学でかぶるヘルメットを選ぶ。お店には形のちがうヘルメットが並んでいる。',
+    axisX:'安全性', hintX:'ころんだり、ぶつかったりしたときに頭を守れるか',
+    axisY:'快適さ', hintY:'重さ・むれにくさ・かぶりたくなるか',
+    example:{ options:[
+      {name:'かたい殻のフルタイプ', note:'厚いクッション。通気の穴は少ない', x:5, y:2, whyX:'頭の横までおおっていて、殻もかたい', whyY:'重くて夏はむれる'},
+      {name:'穴の多い軽いタイプ', note:'ロードバイク用に近い形', x:3, y:4, whyX:'殻はあるが、穴が多いぶん弱そう', whyY:'軽くて風が通る'},
+      {name:'帽子型', note:'見た目はふつうの帽子', x:2, y:5, whyX:'中にクッションが入っているだけ', whyY:'見た目が気にならず、毎日かぶれる'}],
+      user:'中1の自分', situation:'片道20分・坂道と交差点が多い通学路', weight:0.75, chosen:0,
+      reason:'坂道で速度が出るので、安全性を重く見た。重さはがまんできる', idea:'殻の形はそのままで、穴の位置を工夫すれば快適さも上げられそう' } },
+  { topicId:'T2', title:'机に置く本立て', kind:'設計', classCode:'', open:true,
+    scene:'自分の机に置く本立てを木材でつくる。教科書・ノート・辞書を入れたい。',
+    axisX:'安全性', hintX:'倒れないか・角や板で手をけがしないか',
+    axisY:'収納の多さ', hintY:'入れたいものがどれだけ入るか',
+    example:{ options:[
+      {name:'背の高い3段', note:'高さ60cm・奥行き15cm', x:2, y:5, whyX:'背が高いのに奥行きが浅く、地震で倒れそう', whyY:'教科書もノートも全部入る'},
+      {name:'低い2段＋広い底板', note:'高さ35cm・底板を前に出す', x:4, y:3, whyX:'重心が低く、底板が広いので倒れにくい', whyY:'辞書が1冊入らない'},
+      {name:'1段＋角を丸める', note:'高さ20cm', x:5, y:1, whyX:'倒れようがない。角も丸い', whyY:'教科書しか入らない'}],
+      user:'机で勉強する自分', situation:'地震のときも机の前にいることがある', weight:0.5, chosen:1,
+      reason:'半々だと①と②が同じ点になった。倒れたときのけがの方が困るので②にした', idea:'背の高い形でも、壁や机に固定する金具を付ければ両方を上げられる' } },
+  { topicId:'T3', title:'スマホの画面ロック', kind:'評価', classCode:'', open:true,
+    scene:'家族のスマホに、どんな画面ロックを設定するのがよいかを考える。',
+    axisX:'安全性', hintX:'なくしたとき・ぬすまれたときに中を見られないか',
+    axisY:'使いやすさ', hintY:'開くまでの手間・覚えやすさ',
+    example:{ options:[
+      {name:'ロックなし', note:'画面をさわるだけで開く', x:1, y:5, whyX:'拾った人がだれでも見られる', whyY:'すぐ開ける'},
+      {name:'4けたの暗証番号', note:'', x:3, y:4, whyX:'当てるのは少しむずかしい', whyY:'4けたなら覚えられる'},
+      {name:'長い英数字のパスワード', note:'12文字以上', x:5, y:1, whyX:'当てられる心配がほとんどない', whyY:'毎回打つのが大変で、忘れそう'}],
+      user:'祖母', situation:'電話と写真を見るのに毎日使う', weight:0.25, chosen:1,
+      reason:'点だけなら「ロックなし」になったが、なくしたら写真や連絡先を見られてしまう。4けたなら覚えられると言っていた', idea:'指紋や顔で開けるしくみなら、両方を上げられるかもしれない' } }
+];
+const NAMES = ['見本 あおい','見本 いつき','見本 うみ','見本 えいた','見本 おとは','見本 かなた','見本 きよら','見本 くうが','見本 けいと','見本 こはる','見本 さくや','見本 しずく'];
+function seedResponses(){
+  const ex = SEED_TOPICS[0].example, ws = [1,0.75,0.75,0.75,0.5,0.5,0.5,0.75,0.25,0.25,0.75,0];
+  return NAMES.map((n, i) => {
+    const w = ws[i], opts = ex.options.map(o => Object.assign({}, o));
+    const best = bestUnderWeight(opts, w).best[0];
+    const chosen = (i === 7) ? 2 : best;
+    return { responseId:'T1:s' + i, topicId:'T1', email:'s' + i + '@example.com', classCode:'1-1', seat:String(i + 1), name:n,
+      options:opts, user:['自分','自分','弟','自分','自分','友だち','自分','自分','母','自分','自分','自分'][i],
+      situation:'通学', weight:w, chosen:chosen,
+      reason: chosen !== best ? '点では別の案だが、見た目がいやだとかぶらなくなるので' : '重く見た方の点が高い案にした',
+      idea: i % 3 === 0 ? '穴の位置を工夫する' : '', status: i < 10 ? '提出' : '書きかけ', updatedAt:'2026-11-08 10:' + String(10 + i) };
+  });
+}
+
+/* ===== [S8b] 開発モードの見本（技術の課題と、生徒の開発。実名は使わない） ===== */
+const SEED_PROJECTS = [
+  { projectId:'P1', title:'生活の困りごとを解決する木製品', open:true, classCode:'',
+    desc:'自分や家族の生活の中から困りごとを見つけ、木材で解決する製品を設計・製作する。',
+    constraints:'材料：杉板1枚（12×180×900mm）／製作：8時間／工具：両刃のこぎり・かんな・ボール盤・紙やすり',
+    candidates:['安全性','機能性','使いやすさ','丈夫さ','見た目','材料の少なさ','製作のしやすさ','環境への負荷の少なさ'] },
+  { projectId:'P2', title:'学校生活を良くする計測・制御のしくみ', open:true, classCode:'',
+    desc:'学校生活の中の困りごとを、センサーで計測し、プログラムで制御して解決するしくみを考える。',
+    constraints:'デバイス：1人1台（センサーは1つまで）／電源：電池／製作：6時間',
+    candidates:['正確さ','反応の速さ','電池のもち','使いやすさ','安全性','プライバシー','費用の少なさ'] }
+];
+function seedDevs(){
+  const o3 = a => a.map(v => ({ name:v[0], note:v[1], x:v[2], y:v[3], whyX:'', whyY:'' }));
+  const base = (i, o) => Object.assign({ devId:'P1:s' + i, projectId:'P1', email:'s' + i + '@example.com', classCode:'1-1', seat:String(i + 1), name:NAMES[i],
+    user:'', scene:'', ideal:'', now:'', axisX:'', axisY:'', conflict:'', goalX:'', goalY:'', options:[{name:'',note:''},{name:'',note:''}],
+    weight:null, chosen:null, reason:'', task:'', cycles:[], status:'書きかけ', updatedAt:'2026-11-08 09:' + String(10 + i) }, o);
+  return [
+    base(0, { user:'祖母', scene:'台所で調味料を取るとき', ideal:'見たいびんがすぐ取れる', now:'奥のびんを取ろうとして、手前のびんを倒してしまう',
+      axisX:'安全性', axisY:'機能性', conflict:'たくさん入れようと段を高くすると倒れやすくなり、上の段に手をのばすのも危なくなる',
+      goalX:'中身を入れて10°かたむけても倒れない', goalY:'びんが8本入る',
+      options:o3([['3段の縦長ラック','高さ45cm',2,5],['2段のひな段','高さ25cm・前を低く',4,4],['1段のトレー','高さ8cm',5,2]]), weight:0.75, chosen:1,
+      reason:'祖母が使うので倒れないことを重く見た。ひな段なら後ろのびんも見える',
+      task:'祖母が台所で調味料を取るときに、奥のびんを取ろうとして手前のびんを倒してしまう困りごとを解決するために、安全性は「中身を入れて10°かたむけても倒れない」を守りつつ、機能性は「びんが8本入る」をめざした、2段のひな段ラックをつくる。',
+      cycles:[{date:'2026-11-05', what:'段ボールで試作して、びんを並べた', x:4, y:3, result:'倒れなかったが、びんが6本しか入らない', next:'段の奥行きを2cm広げる'},
+              {date:'2026-11-07', what:'奥行きを広げた図に直し、杉板で側板を切った', x:4, y:4, result:'図の上では8本入る。10°はまだ確かめていない', next:'組み立てて10°で確かめる'}],
+      status:'課題提出' }),
+    base(1, { user:'弟（小3）', scene:'部屋で本を片づけるとき', ideal:'自分で本を出し入れできる', now:'本棚が高く、上の段の本を取るときにいすに乗っている',
+      axisX:'安全性', axisY:'機能性', conflict:'たくさん入るように背を高くすると、上の段に手がとどかず、いすに乗ってあぶない',
+      goalX:'床に立ったまま全部の段にとどく', goalY:'絵本が20冊入る',
+      options:o3([['背の高い3段','高さ90cm',2,5],['横長の2段','高さ50cm・幅を広げる',4,3],['床置きの箱','高さ30cm',5,2]]), weight:0.75, chosen:1,
+      reason:'弟がいすに乗らなくてよいことを重く見た',
+      task:'弟（小3）が部屋で本を片づけるときに、いすに乗って上の段の本を取っている困りごとを解決するために、安全性は「床に立ったまま全部の段にとどく」を守りつつ、機能性は「絵本が20冊入る」をめざした、横長の2段の本棚をつくる。',
+      cycles:[{date:'2026-11-06', what:'図をかいて、材料取り図に直した', x:4, y:2, result:'板1枚では幅が足りず、15冊しか入らない', next:'段の高さを下げて3段にできるか考える'}], status:'課題提出' }),
+    base(2, { user:'自分', scene:'ゲーム機と充電器を置くとき', ideal:'コードが机の上で絡まない', now:'充電器とコードが机の上に散らばっている',
+      axisX:'丈夫さ', axisY:'材料の少なさ', conflict:'丈夫にしようと板を厚く・多くすると、杉板1枚では足りなくなる',
+      goalX:'ゲーム機（約400g）をのせてもたわまない', goalY:'杉板1枚の半分で作れる',
+      options:o3([['箱型の台','4面を板で囲む',5,2],['脚つきの台','板2枚と脚4本',3,4],['棚板＋背板','L字に組む',4,3]]), weight:0.5, chosen:2,
+      reason:'半々で見ると③がいちばん高い。背板でコードもかくせる',
+      task:'自分がゲーム機と充電器を置くときに、コードが机の上に散らばる困りごとを解決するために、丈夫さは「ゲーム機をのせてもたわまない」を守りつつ、材料の少なさは「杉板1枚の半分で作れる」をめざした、L字の台をつくる。', status:'課題提出' }),
+    base(3, { user:'母', scene:'出かける前に鍵をさがすとき', ideal:'玄関で鍵がすぐ見つかる', now:'鍵をどこに置いたか忘れて、毎朝さがしている',
+      axisX:'使いやすさ', axisY:'見た目', conflict:'すぐ取れるようにフックを大きくすると、玄関で目立ってしまう',
+      goalX:'片手で3秒以内に取れる', goalY:'家族が「玄関に置いてよい」と言う',
+      options:o3([['大きなフック','',5,2],['ふたつきの小箱','',2,5],['かべかけの板＋小さなフック','',4,3]]), weight:0.5, chosen:2,
+      reason:'半々なら②と③が同じ点。母は急いでいるので取りやすい③にした',
+      task:'母が出かける前に、鍵を毎朝さがしている困りごとを解決するために、使いやすさは「片手で3秒以内に取れる」を守りつつ、見た目は「家族が玄関に置いてよいと言う」をめざした、かべかけの鍵置きをつくる。', status:'課題提出' }),
+    base(4, { user:'自分', scene:'机でプリントを整理するとき', ideal:'教科ごとにすぐ出せる', now:'プリントが重なって、どこにあるか分からない',
+      axisX:'機能性', axisY:'製作のしやすさ', conflict:'仕切りをたくさん作ると、切る板が増えて8時間で終わらない', goalX:'5教科を分けられる', goalY:'切る板が8枚以内',
+      options:o3([['仕切り5つのファイル立て','',5,2],['仕切り2つ','',3,4]]) }),
+    base(5, { user:'祖父', scene:'庭で植木ばちを置くとき', ideal:'植木ばちを腰の高さで世話できる', now:'しゃがんで水やりをするので腰が痛い',
+      axisX:'丈夫さ', axisY:'材料の少なさ', conflict:'重い植木ばちに耐えるように脚を太くすると、板が足りなくなる', goalX:'5kgの植木ばちをのせてもぐらつかない', goalY:'杉板1枚で作れる',
+      options:o3([['4本脚の台','',4,3],['箱型の台','',5,1]]), weight:0.5, chosen:0, reason:'板1枚で作れるのは①だけ',
+      task:'祖父が庭で植木ばちを世話するときに、しゃがんで腰が痛くなる困りごとを解決するために、丈夫さは「5kgの植木ばちをのせてもぐらつかない」を守りつつ、材料の少なさは「杉板1枚で作れる」をめざした、4本脚の台をつくる。',
+      cycles:[{date:'2026-11-04', what:'脚を組んで仮どめした', x:3, y:4, result:'5kgをのせると少しぐらつく', next:'脚の間に横木を入れる'},
+              {date:'2026-11-06', what:'横木を2本足した', x:4, y:3, result:'ぐらつかなくなった。板は1枚でぎりぎり', next:'仕上げ'}], status:'課題提出' }),
+    base(6, { user:'自分', scene:'筆箱を机に置くとき', now:'筆箱が机から落ちる', axisX:'機能性', axisY:'見た目' }),
+    base(7, {})
+  ];
+}
+
+/* ===== [S9] Api 層（環境判定はここだけ。google.script.run は _run だけが呼ぶ） ===== */
+const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
+const KEY = 'oriai.v0';
+const MockApi = {
+  _db(){ let d = null; try { d = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+    if (!d) { d = { topics: JSON.parse(JSON.stringify(SEED_TOPICS)), responses: seedResponses() }; this._save(d); }
+    if (!d.projects) { d.projects = JSON.parse(JSON.stringify(SEED_PROJECTS)); d.devs = seedDevs(); this._save(d); } return d; },
+  _save(d){ localStorage.setItem(KEY, JSON.stringify(d)); },
+  async reset(){ localStorage.removeItem(KEY); this._db(); return { success:true }; },
+  async getTopics(){ return { success:true, topics: this._db().topics.filter(t => t.open) }; },
+  async getMyResponse(topicId){ const d = this._db(); return { success:true, response: d.responses.find(r => r.topicId === topicId && r.email === 'me@example.com') || null }; },
+  async getMyList(){ const d = this._db(); return { success:true, list: d.responses.filter(r => r.email === 'me@example.com').map(r => ({topicId:r.topicId, status:r.status})) }; },
+  async saveResponse(r){ const d = this._db(); r.email = 'me@example.com'; r.responseId = r.topicId + ':me'; r.updatedAt = stamp();
+    const i = d.responses.findIndex(x => x.responseId === r.responseId); if (i >= 0) d.responses[i] = r; else d.responses.push(r); this._save(d); return { success:true, updatedAt:r.updatedAt }; },
+  async teacherTopics(){ const d = this._db(); return { success:true, topics: d.topics.map(t => Object.assign({}, t, {
+      sent: d.responses.filter(r => r.topicId === t.topicId && r.status === '提出').length,
+      draft: d.responses.filter(r => r.topicId === t.topicId && r.status !== '提出').length })) }; },
+  async teacherResponses(topicId){ return { success:true, responses: this._db().responses.filter(r => r.topicId === topicId) }; },
+  async saveTopic(t){ const d = this._db(); if (!t.topicId) t.topicId = 'T' + Date.now(); t.updatedAt = stamp();
+    const i = d.topics.findIndex(x => x.topicId === t.topicId); if (i >= 0) d.topics[i] = Object.assign(d.topics[i], t); else d.topics.push(Object.assign({example:null}, t)); this._save(d); return { success:true, topicId:t.topicId }; },
+  /* --- 開発モード --- */
+  async getProjects(){ return { success:true, projects: this._db().projects.filter(p => p.open) }; },
+  async getMyDev(id){ return { success:true, dev: this._db().devs.find(x => x.projectId === id && x.email === 'me@example.com') || null }; },
+  async getMyDevList(){ return { success:true, list: this._db().devs.filter(x => x.email === 'me@example.com').map(x => ({ projectId:x.projectId, stage:devStage(x) })) }; },
+  async saveDev(v){ const d = this._db(); v.email = 'me@example.com'; v.devId = v.projectId + ':me'; v.updatedAt = stamp();
+    const i = d.devs.findIndex(x => x.devId === v.devId); if (i >= 0) d.devs[i] = v; else d.devs.push(v); this._save(d); return { success:true, updatedAt:v.updatedAt }; },
+  async teacherProjects(){ const d = this._db(); return { success:true, projects: d.projects.map(p => { const ds = d.devs.filter(x => x.projectId === p.projectId);
+      return Object.assign({}, p, { total: ds.length, fixed: ds.filter(x => x.status === '課題提出').length }); }) }; },
+  async teacherDevs(id){ return { success:true, devs: this._db().devs.filter(x => x.projectId === id) }; },
+  async saveProject(p){ const d = this._db(); if (!p.projectId) p.projectId = 'P' + Date.now(); p.updatedAt = stamp();
+    const i = d.projects.findIndex(x => x.projectId === p.projectId); if (i >= 0) d.projects[i] = Object.assign(d.projects[i], p); else d.projects.push(p); this._save(d); return { success:true, projectId:p.projectId }; }
+};
+const GasApi = {
+  /** 3秒たっても返事がなければ画面に知らせる（GAS 側で例外が出たときの永久ローディング対策） */
+  _run(fn, ...args){ return new Promise(resolve => {
+    const timer = setTimeout(() => dlog('3秒たっても返事がありません: ' + fn), 3000);
+    google.script.run.withSuccessHandler(r => { clearTimeout(timer); resolve(r); })
+      .withFailureHandler(e => { clearTimeout(timer); dlog(fn + ' 失敗: ' + e.message); resolve({ success:false, message:e.message }); })[fn](...args); }); }
+};
+['getTopics','getMyResponse','getMyList','saveResponse','teacherTopics','teacherResponses','saveTopic','getProjects','getMyDev','getMyDevList','saveDev','teacherProjects','teacherDevs','saveProject'].forEach(f => GasApi[f] = (...a) => GasApi._run(f, ...a));
+const Api = IS_GAS ? GasApi : MockApi;
+dlog('Api: ' + (IS_GAS ? 'GasApi' : 'MockApi（この端末の localStorage）'));
+
+/* ===== [S10] 小道具 ===== */
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function stamp(){ const d = new Date(), p = n => String(n).padStart(2,'0'); return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+const MARK = ['①','②','③','④'];
+/** 重みつきの点で、いちばん良い案（同点なら複数）。SPEC §5 */
+function bestUnderWeight(options, w){
+  const scores = options.map(o => (o.x && o.y) ? w * o.x + (1 - w) * o.y : null);
+  const vals = scores.filter(s => s !== null); if (!vals.length) return { best:[], scores };
+  const top = Math.max(...vals);
+  return { best: scores.map((s,i) => (s !== null && Math.abs(s - top) < 1e-9) ? i : -1).filter(i => i >= 0), scores };
+}
+function weightLabels(t){ return [
+  { w:1, t: t.axisX + 'だけ' }, { w:0.75, t: t.axisX + 'を重く' }, { w:0.5, t:'半々' },
+  { w:0.25, t: t.axisY + 'を重く' }, { w:0, t: t.axisY + 'だけ' } ]; }
+function wText(t, w){ const l = weightLabels(t).find(x => x.w === w); return l ? l.t : '未選択'; }
+
+/* ===== [S11] 状態 ===== */
+const S = { role:'student', mode:'dev', p:null, d:null, dstep:0, projects:[], view:'map', screen:'home', topics:[], topic:null, r:null, step:0, me:{classCode:'', seat:'', name:''}, myList:[], saveTimer:null, savedAt:'' ,
+  t:{ topics:[], sel:null, resps:[], tab:'map', projects:[], psel:null, devs:[] } };
+try { Object.assign(S.me, JSON.parse(localStorage.getItem('oriai.me') || '{}')); S.view = localStorage.getItem('oriai.view') || 'map'; S.mode = localStorage.getItem('oriai.mode') || 'dev'; } catch(e){}
+
+/* ===== [S12] 見え方：地図・天秤・表（B と C の右側。先生画面の地図もここ） ===== */
+function viewSVGMap(t, options, w, opts){
+  opts = opts || {};
+  const W = 400, H = 370, L = 40, B = 44, T = 34, R = 14, gw = W - L - R, gh = H - T - B;
+  const px = x => L + (x - 0.6) / 4.8 * gw, py = y => T + (5.4 - y) / 4.8 * gh; // 端の点が軸に重ならないよう 0.6〜5.4 を描く
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(t.axisX)}と${esc(t.axisY)}の地図">`;
+  for (let i = 1; i <= 5; i++) {
+    s += `<line x1="${px(i)}" y1="${T}" x2="${px(i)}" y2="${T+gh}" stroke="#e6e8eb"/><line x1="${L}" y1="${py(i)}" x2="${L+gw}" y2="${py(i)}" stroke="#e6e8eb"/>`;
+    s += `<text x="${px(i)}" y="${T+gh+16}" font-size="12" text-anchor="middle" fill="#59636e">${i}</text><text x="${L-10}" y="${py(i)+4}" font-size="12" text-anchor="end" fill="#59636e">${i}</text>`;
+  }
+  s += `<line x1="${L}" y1="${T+gh}" x2="${L+gw}" y2="${T+gh}" stroke="#1f6feb" stroke-width="2"/><line x1="${L}" y1="${T}" x2="${L}" y2="${T+gh}" stroke="#c96a12" stroke-width="2"/>`;
+  s += `<text x="${L+gw}" y="${H-6}" font-size="13" text-anchor="end" fill="#1f6feb" font-weight="700">${esc(t.axisX)} →</text>`;
+  s += `<text x="${L}" y="${T-12}" font-size="13" fill="#c96a12" font-weight="700">↑ ${esc(t.axisY)}</text>`;
+  s += `<text x="${L+gw}" y="${T-12}" font-size="11" text-anchor="end" fill="#59636e">右上ほど両方高い</text>`;
+  if (opts.cloud) { // 先生画面：クラスの点
+    opts.cloud.forEach((c, i) => {
+      const jx = ((i * 37) % 11 - 5) * 1.6, jy = ((i * 53) % 11 - 5) * 1.6;
+      const col = c.w >= 0.75 ? '#1f6feb' : c.w <= 0.25 ? '#c96a12' : '#59636e';
+      s += `<circle cx="${px(c.x)+jx}" cy="${py(c.y)+jy}" r="6" fill="${col}" fill-opacity=".75"><title>${esc(c.label)}</title></circle>`;
+    });
+    return s + '</svg>';
+  }
+  if (opts.path) { // 開発の記録：計画→版1→版2… の動き
+    const pts = opts.path.filter(p => p.x && p.y), mid = 'ah' + Math.floor(Math.random() * 1e6);
+    s += `<defs><marker id="${mid}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1f2328"/></marker></defs>`;
+    for (let i = 1; i < pts.length; i++) {
+      const x1 = px(pts[i-1].x), y1 = py(pts[i-1].y), x2 = px(pts[i].x), y2 = py(pts[i].y), len = Math.hypot(x2 - x1, y2 - y1);
+      if (len < 1) continue; const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
+      s += `<line x1="${x1 + ux*14}" y1="${y1 + uy*14}" x2="${x2 - ux*15}" y2="${y2 - uy*15}" stroke="#1f2328" stroke-width="2" marker-end="url(#${mid})"/>`;
+    }
+    pts.forEach((p, i) => {
+      const jx = pts.slice(0, i).filter(q => q.x === p.x && q.y === p.y).length * 8, cx = px(p.x) + jx, cy = py(p.y) - jx;
+      s += p.plan ? `<circle cx="${cx}" cy="${cy}" r="13" fill="#fff" stroke="#1f2328" stroke-width="2" stroke-dasharray="4 3"/><text x="${cx}" y="${cy+4}" font-size="11" text-anchor="middle">計画</text>`
+                  : `<circle cx="${cx}" cy="${cy}" r="13" fill="#1f2328"/><text x="${cx}" y="${cy+5}" font-size="13" text-anchor="middle" fill="#fff" font-weight="700">${esc(p.label)}</text>`;
+    });
+    return s + '</svg>';
+  }
+  const valid = options.map((o,i) => ({o,i})).filter(v => v.o.x && v.o.y);
+  const bw = (w === null || w === undefined) ? null : bestUnderWeight(options, w);
+  if (bw && bw.best.length) { // 等しい良さの線：w*x+(1-w)*y = いちばん良い点
+    const sc = bw.scores[bw.best[0]], pts = [];
+    if (w === 0) { pts.push([1, sc], [5, sc]); } else if (w === 1) { pts.push([sc, 1], [sc, 5]); }
+    else { [1,5].forEach(x => { const y = (sc - w*x)/(1-w); if (y >= 1 && y <= 5) pts.push([x,y]); });
+           [1,5].forEach(y => { const x = (sc - (1-w)*y)/w; if (x >= 1 && x <= 5) pts.push([x,y]); }); }
+    if (pts.length >= 2) s += `<line x1="${px(pts[0][0])}" y1="${py(pts[0][1])}" x2="${px(pts[pts.length-1][0])}" y2="${py(pts[pts.length-1][1])}" stroke="#1f2328" stroke-dasharray="6 4" stroke-width="1.5"/>`;
+  }
+  valid.forEach(({o,i}) => {
+    const isBest = bw && bw.best.includes(i), cx = px(o.x), cy = py(o.y);
+    s += `<circle cx="${cx}" cy="${cy}" r="${isBest ? 15 : 12}" fill="${isBest ? '#1f2328' : '#fff'}" stroke="#1f2328" stroke-width="2"/>`;
+    s += `<text x="${cx}" y="${cy+5}" font-size="14" text-anchor="middle" fill="${isBest ? '#fff' : '#1f2328'}" font-weight="700">${i+1}</text>`;
+  });
+  return s + '</svg>';
+}
+function viewBalance(t, options, w){
+  const bw = (w === null || w === undefined) ? null : bestUnderWeight(options, w);
+  return options.map((o,i) => {
+    if (!o.x || !o.y) return `<div class="muted" style="padding:6px 0">${MARK[i]} ${esc(o.name)}：まだ点がついていません</div>`;
+    const ang = -(o.x - o.y) * 5, isBest = bw && bw.best.includes(i);
+    return `<div style="display:grid;grid-template-columns:120px 1fr;align-items:center;border-top:1px solid var(--line);padding:4px 0">
+      <div><b>${MARK[i]}</b> ${esc(o.name)}${isBest ? '<br><span class="done">いまの重みで最高</span>' : ''}</div>
+      <svg viewBox="-14 -4 288 122" width="100%"><polygon points="130,100 120,112 140,112" fill="#1f2328"/>
+        <g transform="rotate(${ang} 130 98)"><line x1="30" y1="98" x2="230" y2="98" stroke="#1f2328" stroke-width="3"/>
+          <rect x="22" y="${98 - o.x*12}" width="44" height="${o.x*12}" fill="#1f6feb"/><text x="44" y="${92 - o.x*12}" font-size="12" text-anchor="middle" fill="#1f6feb">${esc(t.axisX)} ${o.x}</text>
+          <rect x="194" y="${98 - o.y*12}" width="44" height="${o.y*12}" fill="#c96a12"/><text x="216" y="${92 - o.y*12}" font-size="12" text-anchor="middle" fill="#c96a12">${esc(t.axisY)} ${o.y}</text></g></svg></div>`;
+  }).join('');
+}
+function viewTable(t, options, w){
+  const bw = (w === null || w === undefined) ? null : bestUnderWeight(options, w);
+  return `<table class="tbl"><tr><th></th><th>案</th><th class="tx">${esc(t.axisX)}</th><th class="ty">${esc(t.axisY)}</th>${bw ? '<th>重みつき</th>' : ''}</tr>` +
+    options.map((o,i) => `<tr class="${bw && bw.best.includes(i) ? 'best' : ''}"><td class="n">${i+1}</td><td>${esc(o.name)}</td>
+      <td><b>${o.x || '-'}</b><div class="muted">${esc(o.whyX)}</div></td><td><b>${o.y || '-'}</b><div class="muted">${esc(o.whyY)}</div></td>
+      ${bw ? `<td><b>${bw.scores[i] === null ? '-' : bw.scores[i].toFixed(2)}</b></td>` : ''}</tr>`).join('') + '</table>';
+}
+function viewPanel(t, options, w){
+  const name = {map:'地図', balance:'天秤', table:'表'}[S.view];
+  let body = S.view === 'map' ? viewSVGMap(t, options, w) : S.view === 'balance' ? viewBalance(t, options, w) : viewTable(t, options, w);
+  let note = S.view === 'map' ? (w === null || w === undefined ? '右上ほど両方が高い。点がどちらかに寄っていれば、そこがトレードオフ。' : '点線は「同じくらい良い」の線。重みを変えると線が回り、いちばん良い案（黒）が入れかわることがある。')
+    : S.view === 'balance' ? `${esc(t.axisX)}が高いと左に、${esc(t.axisY)}が高いと右に傾く。` : '';
+  return `<div class="panel"><div class="viewhead"><h3>${name}で見る</h3><span class="muted">上の「見え方」で切りかえ</span></div>${body}<p class="muted" style="margin:6px 0 0">${note}</p></div>`;
+}
+
+/* ===== [S13] 生徒の画面 ===== */
+async function studentHome(){
+  const [a, b] = await Promise.all([Api.getTopics(), Api.getMyList()]);
+  S.topics = a.topics || []; S.myList = b.list || [];
+  const st = id => { const m = S.myList.find(x => x.topicId === id); return m ? m.status : 'まだ'; };
+  app.innerHTML = modeTabs() + `
+    <div class="who"><div><label>組</label><input class="f" id="mc" value="${esc(S.me.classCode)}" placeholder="1-1"></div>
+      <div><label>番号</label><input class="f" id="ms" value="${esc(S.me.seat)}" inputmode="numeric"></div>
+      <div><label>名前</label><input class="n" id="mn" value="${esc(S.me.name)}"></div>
+      <span class="muted">先生が配ったお題から1つ選んで書きはじめます。</span></div>
+    <h2 style="font-size:17px;margin-bottom:10px">お題</h2>
+    <div class="topics">${S.topics.map(t => `<button class="topic" data-open="${esc(t.topicId)}">
+        <span><span class="tag">${esc(t.kind)}</span></span><b style="font-size:16px">${esc(t.title)}</b>
+        <span class="axes"><span class="tx">${esc(t.axisX)}</span> と <span class="ty">${esc(t.axisY)}</span></span>
+        <span class="state">${st(t.topicId) === 'まだ' ? 'まだ書いていない' : st(t.topicId)}</span></button>`).join('')}</div>`;
+  ['mc','ms','mn'].forEach(id => document.getElementById(id).oninput = () => {
+    S.me = { classCode: mc.value.trim(), seat: String(ms.value).trim(), name: mn.value.trim() };
+    try { localStorage.setItem('oriai.me', JSON.stringify(S.me)); } catch(e){} });
+  app.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openTopic(b.dataset.open));
+}
+async function openTopic(id){
+  if (!S.me.name) { alert('先に組・番号・名前を書いてください'); document.getElementById('mn').focus(); return; }
+  S.topic = S.topics.find(t => t.topicId === id);
+  const res = await Api.getMyResponse(id);
+  S.r = res.response || { topicId:id, options:[{name:'',note:''},{name:'',note:''}], user:'', situation:'', weight:null, chosen:null, reason:'', idea:'', status:'書きかけ' };
+  S.step = res.response ? 1 : 0; S.screen = 'work'; S.savedAt = res.response ? '保存ずみ ' + res.response.updatedAt.slice(11) : '';
+  render();
+}
+function filled(){ return S.r.options.filter(o => o.name && o.name.trim()); }
+function stepDone(i){ const r = S.r;
+  if (i === 1) return filled().length >= 2;
+  if (i === 2) return filled().length >= 2 && filled().every(o => o.x && o.y);
+  if (i === 3) return r.weight !== null && r.chosen !== null && !!r.reason.trim(); return false; }
+function studentWork(){
+  const t = S.topic, r = S.r;
+  const stepNames = ['お題を読む','案を出す','2つの視点で比べる','折り合いをつける'];
+  app.innerHTML = `
+    <div class="workhead"><button class="quiet" id="back">← お題の一覧</button><h2>${esc(t.title)}</h2><span class="tag">${esc(t.kind)}</span>
+      <div class="right"><span class="saved" id="saved">${esc(S.savedAt)}</span><button class="quiet" id="ex" ${t.example ? '' : 'disabled'}>記入例を見る</button>
+      <button class="main" id="submit" ${stepDone(3) && stepDone(2) ? '' : 'disabled'}>${r.status === '提出' ? '出し直す' : '提出する'}</button></div></div>
+    <nav class="steps">${stepNames.map((n,i) => `<button data-step="${i}" class="${S.step === i ? 'on' : ''}"><b>${i ? 'ABC'[i-1] : '0'}</b>${n}${stepDone(i) ? ' <span class="done">済</span>' : ''}</button>`).join('')}</nav>
+    <div class="work"><div id="left"></div><div id="right"></div></div>`;
+  back.onclick = () => { S.screen = 'home'; render(); };
+  ex.onclick = () => showExample(t);
+  submit.onclick = async () => { r.status = '提出'; await save(true); alert('提出しました。あとから直して出し直すこともできます。'); render(); };
+  app.querySelectorAll('[data-step]').forEach(b => b.onclick = () => { S.step = +b.dataset.step; render(); });
+  drawStep();
+}
+function drawStep(){
+  const t = S.topic, r = S.r, L = document.getElementById('left'), Rt = document.getElementById('right');
+  const axisBox = `<div class="axisbox"><div class="ax"><span class="tx">視点X　${esc(t.axisX)}</span><div class="muted">${esc(t.hintX)}</div></div>
+    <div class="ay"><span class="ty">視点Y　${esc(t.axisY)}</span><div class="muted">${esc(t.hintY)}</div></div></div>`;
+  const next = (lbl) => `<div class="nav"><button class="quiet" data-go="${S.step-1}" ${S.step ? '' : 'style="visibility:hidden"'}>← もどる</button><button class="main" data-go="${S.step+1}">${lbl} →</button></div>`;
+  if (S.step === 0) {
+    L.innerHTML = `<div class="panel"><h3>お題</h3><p class="lead" style="font-size:17px">${esc(t.scene)}</p>${axisBox}
+      <p class="lead" style="margin-top:12px">${esc(t.axisX)}を上げようとすると${esc(t.axisY)}が下がる──そんな「あちらを立てればこちらが立たず」を、案を比べながら考えます。<br>
+      最後は<b>だれが・どんな場面で使うか</b>を決めて、どこで折り合いをつけるかを選びます。正解は1つではありません。</p>${next('案を出す')}</div>`;
+    Rt.innerHTML = `<div class="panel"><h3>流れ</h3><ol style="margin:0;padding-left:20px"><li>案を2〜4つ出す</li><li>案ごとに2つの視点で1〜5点と、その理由</li><li>使う人と場面を決めて、どちらを重く見るか選ぶ</li><li>選ぶ案と理由を書いて提出</li></ol></div>`;
+  }
+  if (S.step === 1) {
+    L.innerHTML = `<div class="panel"><h3>A　案を出す</h3><p class="lead">${t.kind === '評価' ? '比べたい製品・方法を2〜4つ書こう。' : '自分の構想を、ちがう形の案に2〜4つ分けて書こう。'}</p>
+      <p class="okline">書けるところだけでOK。あとから戻って直せます。</p>
+      ${r.options.map((o,i) => `<div class="opt"><span class="num">${MARK[i]}</span><input data-o="${i}" data-k="name" value="${esc(o.name)}" placeholder="案の名前">
+        <input class="note" data-o="${i}" data-k="note" value="${esc(o.note)}" placeholder="ひとこと説明（形・材料・しくみ）">
+        <button class="quiet" data-del="${i}" title="この案を消す" ${r.options.length <= 2 ? 'disabled' : ''} aria-label="消す">×</button></div>`).join('')}
+      <button class="quiet" id="add" ${r.options.length >= 4 ? 'disabled' : ''}>＋ 案を足す（4つまで）</button>${next('比べる')}</div>`;
+    Rt.innerHTML = `<div class="panel">${axisBox}<p class="muted" style="margin:8px 0 0">2つの視点のどちらかが高く、どちらかが低い案を混ぜると、あとで比べやすくなります。</p></div>`;
+    L.querySelectorAll('input[data-o]').forEach(el => el.oninput = () => { r.options[+el.dataset.o][el.dataset.k] = el.value; touch(); });
+    L.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm(MARK[+b.dataset.del] + ' の案を消しますか？')) { r.options.splice(+b.dataset.del, 1); if (r.chosen !== null && r.chosen >= r.options.length) r.chosen = null; touch(); drawStep(); } });
+    add.onclick = () => { r.options.push({name:'',note:''}); touch(); drawStep(); };
+  }
+  if (S.step === 2) {
+    const list = r.options.map((o,i) => ({o,i})).filter(v => v.o.name && v.o.name.trim());
+    L.innerHTML = `<div class="panel"><h3>B　2つの視点で比べる</h3><p class="lead">案ごとに1〜5点をつけて、<b>そう思った理由</b>を1行で書こう。</p>
+      <p class="okline">理由は「${esc(t.axisX)}」の点なら${esc(t.axisX)}のことだけを書く。</p>
+      ${list.length < 2 ? '<p>先に A で案を2つ以上書いてください。</p>' : list.map(({o,i}) => `<div class="rate"><b>${MARK[i]} ${esc(o.name)}</b> <span class="muted">${esc(o.note)}</span>
+        <div class="row"><span class="tx">${esc(t.axisX)}</span><div class="score sx">${[1,2,3,4,5].map(n => `<button data-sc="${i}" data-a="x" data-v="${n}" class="${o.x === n ? 'on' : ''}">${n}</button>`).join('')}</div>
+          <input data-o="${i}" data-k="whyX" value="${esc(o.whyX)}" placeholder="${esc(t.axisX)}の理由"></div>
+        <div class="row"><span class="ty">${esc(t.axisY)}</span><div class="score sy">${[1,2,3,4,5].map(n => `<button data-sc="${i}" data-a="y" data-v="${n}" class="${o.y === n ? 'on' : ''}">${n}</button>`).join('')}</div>
+          <input data-o="${i}" data-k="whyY" value="${esc(o.whyY)}" placeholder="${esc(t.axisY)}の理由"></div></div>`).join('')}
+      ${next('折り合いをつける')}</div>`;
+    Rt.innerHTML = viewPanel(t, r.options, null);
+    L.querySelectorAll('[data-sc]').forEach(b => b.onclick = () => { r.options[+b.dataset.sc][b.dataset.a] = +b.dataset.v; touch(); drawStep(); });
+    L.querySelectorAll('input[data-o]').forEach(el => el.oninput = () => { r.options[+el.dataset.o][el.dataset.k] = el.value; touch(); });
+  }
+  if (S.step === 3) {
+    const bw = r.weight === null ? null : bestUnderWeight(r.options, r.weight);
+    const diff = bw && r.chosen !== null && !bw.best.includes(r.chosen);
+    const list = r.options.map((o,i) => ({o,i})).filter(v => v.o.name && v.o.name.trim());
+    L.innerHTML = `<div class="panel"><h3>C　折り合いをつける</h3>
+      <div class="form2"><label class="field"><span>だれが使う？</span><input id="fu" value="${esc(r.user)}" placeholder="例：小学生の弟"></label>
+        <label class="field"><span>どんな場面で？</span><input id="fs" value="${esc(r.situation)}" placeholder="例：雨の日の通学"></label></div>
+      <div class="field"><span>その人・場面なら、どちらを重く見る？</span><div class="weights">${weightLabels(t).map(x => `<button data-w="${x.w}" class="${r.weight === x.w ? 'on' : ''}">${esc(x.t)}</button>`).join('')}</div></div>
+      <div class="bestmsg">${bw ? (bw.best.length ? 'いまの重みでいちばん点が高いのは <b>' + bw.best.map(i => MARK[i] + ' ' + esc(r.options[i].name)).join('、') + '</b>' + (bw.best.length > 1 ? '（同点）' : '') : 'B で点をつけると、ここに出ます') : '重みを選ぶと、いちばん点が高い案が出ます。'}</div>
+      <div class="field"><span>選ぶ案（点が高い案でなくてもよい）</span><div class="choose">${list.map(({o,i}) => `<label class="${r.chosen === i ? 'on' : ''}"><input type="radio" name="ch" value="${i}" ${r.chosen === i ? 'checked' : ''}>${MARK[i]} ${esc(o.name)}</label>`).join('')}</div></div>
+      <label class="field"><span>${diff ? '<b>点がいちばん高い案とちがう案にした理由</b>' : '選んだ理由（使う人・場面とつなげて）'}</span><textarea id="fr">${esc(r.reason)}</textarea></label>
+      <label class="field"><span>両方を良くする工夫はある？（あれば）</span><textarea id="fi" placeholder="例：形はそのままで材料を変える">${esc(r.idea)}</textarea></label>
+      <div class="nav"><button class="quiet" data-go="2">← もどる</button><span class="muted">書けたら右上の「提出する」</span></div></div>`;
+    Rt.innerHTML = viewPanel(t, r.options, r.weight);
+    fu.oninput = () => { r.user = fu.value; touch(); }; fs.oninput = () => { r.situation = fs.value; touch(); };
+    fr.oninput = () => { r.reason = fr.value; touch(true); }; fi.oninput = () => { r.idea = fi.value; touch(); };
+    L.querySelectorAll('[data-w]').forEach(b => b.onclick = () => { r.weight = +b.dataset.w; touch(); drawStep(); });
+    L.querySelectorAll('input[name=ch]').forEach(el => el.onchange = () => { r.chosen = +el.value; touch(); drawStep(); });
+  }
+  document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { S.step = Math.max(0, Math.min(3, +b.dataset.go)); render(); });
+}
+/** 入力のたびに 0.6 秒待ってから保存（書きかけでも消えない） */
+function touch(quick){ document.getElementById('saved').textContent = '保存中…'; clearTimeout(S.saveTimer); S.saveTimer = setTimeout(() => save(false), quick ? 900 : 600);
+  const sb = document.getElementById('submit'); if (sb) sb.disabled = !(stepDone(3) && stepDone(2));
+  document.querySelectorAll('.steps [data-step]').forEach(b => { const i = +b.dataset.step, has = !!b.querySelector('.done');
+    if (stepDone(i) && !has) b.insertAdjacentHTML('beforeend', ' <span class="done">済</span>'); if (!stepDone(i) && has) b.querySelector('.done').remove(); }); }
+async function save(force){
+  const r = Object.assign({}, S.r, { classCode:S.me.classCode, seat:S.me.seat, name:S.me.name });
+  const res = await Api.saveResponse(r);
+  if (res.success) { S.savedAt = '保存しました ' + res.updatedAt.slice(11); S.r.updatedAt = res.updatedAt; }
+  else S.savedAt = '保存できませんでした（ログを見てください）';
+  const el = document.getElementById('saved'); if (el) el.textContent = S.savedAt;
+}
+function showExample(t){
+  const e = t.example;
+  drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc">とじる</button><h3 style="font-size:17px">記入例：${esc(t.title)}</h3>
+    <p class="muted">まねする答えではありません。書き方の例です。</p>
+    <h3 style="margin-top:12px">A・B　案と点</h3>${viewTable(t, e.options, e.weight)}
+    <div style="margin-top:10px">${viewSVGMap(t, e.options, e.weight)}</div>
+    <h3 style="margin-top:12px">C　折り合い</h3>
+    <p style="margin:4px 0"><b>だれが・どんな場面：</b>${esc(e.user)}／${esc(e.situation)}</p>
+    <p style="margin:4px 0"><b>重み：</b>${esc(wText(t, e.weight))}　<b>選んだ案：</b>${MARK[e.chosen]} ${esc(e.options[e.chosen].name)}</p>
+    <p style="margin:4px 0"><b>理由：</b>${esc(e.reason)}</p><p style="margin:4px 0"><b>両方を良くする工夫：</b>${esc(e.idea)}</p></div></div>`;
+  dc.onclick = () => drawer.innerHTML = ''; drawer.firstChild.onclick = ev => { if (ev.target === drawer.firstChild) drawer.innerHTML = ''; };
+}
+
+/* ===== [S14] 先生の画面 ===== */
+async function teacherHome(){
+  const res = await Api.teacherTopics(); S.t.topics = res.topics || [];
+  if (!S.t.sel && S.t.topics.length) S.t.sel = S.t.topics[0].topicId;
+  if (S.t.sel) S.t.resps = (await Api.teacherResponses(S.t.sel)).responses || [];
+  const t = S.t.topics.find(x => x.topicId === S.t.sel);
+  app.innerHTML = modeTabs() + `<div class="tgrid"><div class="tlist"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="font-size:16px">お題</h2><button class="quiet" id="newt">＋ つくる</button></div>
+      ${S.t.topics.map(x => `<button data-t="${esc(x.topicId)}" class="${x.topicId === S.t.sel ? 'on' : ''}"><b>${esc(x.title)}</b> <span class="tag">${esc(x.kind)}</span>${x.open ? '' : ' <span class="tag">配っていない</span>'}<br>
+        <span class="muted"><span class="tx">${esc(x.axisX)}</span> と <span class="ty">${esc(x.axisY)}</span>　提出 ${x.sent}・書きかけ ${x.draft}</span></button>`).join('')}</div>
+    <div id="tmain"></div></div>`;
+  app.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { S.t.sel = b.dataset.t; teacherHome(); });
+  newt.onclick = () => topicEditor(null);
+  if (t) teacherTopic(t);
+}
+function teacherTopic(t){
+  const rs = S.t.resps, sent = rs.filter(r => r.status === '提出');
+  const cloud = sent.filter(r => r.chosen !== null && r.options[r.chosen] && r.options[r.chosen].x)
+    .map(r => ({ x:r.options[r.chosen].x, y:r.options[r.chosen].y, w:r.weight, label: r.classCode + '-' + r.seat + ' ' + r.name + '：' + r.options[r.chosen].name }));
+  const bins = [1,0.75,0.5,0.25,0].map(w => sent.filter(r => r.weight === w).length), mx = Math.max(1, ...bins);
+  const diff = sent.filter(r => r.weight !== null && !bestUnderWeight(r.options, r.weight).best.includes(r.chosen)).length;
+  tmain.innerHTML = `<div class="panel"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="font-size:18px">${esc(t.title)}</h2><span class="tag">${esc(t.kind)}</span>
+      <button class="quiet" id="edt" style="margin-left:auto">お題を直す</button></div>
+      <p class="muted" style="margin:4px 0">${esc(t.scene)}</p>
+      <div class="kpis"><span>提出 <b>${sent.length}</b></span><span>書きかけ <b>${rs.length - sent.length}</b></span><span>点が最高でない案を選んだ <b>${diff}</b></span></div></div>
+    <div class="cls" style="margin-top:12px"><div class="panel"><h3>選んだ案の地図（提出した人）</h3>${viewSVGMap(t, [], null, {cloud})}
+        <p class="muted" style="margin:4px 0 0">点＝一人が選んだ案。<span class="tx">青</span>＝${esc(t.axisX)}を重く／<span class="ty">橙</span>＝${esc(t.axisY)}を重く／灰＝半々。点にふれると名前。</p>
+        <h3 style="margin-top:12px">どちらを重く見たか</h3><div class="bars">${bins.map(n => `<div style="height:${n / mx * 100}%" title="${n}人"></div>`).join('')}</div>
+        <div class="barl">${weightLabels(t).map((x,i) => `<span>${esc(x.t)}<br>${bins[i]}人</span>`).join('')}</div></div>
+      <div class="panel" style="overflow-x:auto"><h3>一覧（行を押すと全部見られます）</h3><table class="tbl"><tr><th>組-番</th><th>名前</th><th>使う人・場面</th><th>重み</th><th>選んだ案</th><th>理由</th><th>状態</th></tr>
+        ${rs.slice().sort((a,b) => (a.classCode + a.seat.padStart(3,'0')).localeCompare(b.classCode + b.seat.padStart(3,'0'))).map(r => `<tr class="click" data-r="${esc(r.responseId)}"><td>${esc(r.classCode)}-${esc(r.seat)}</td><td>${esc(r.name)}</td>
+          <td>${esc(r.user)}<div class="muted">${esc(r.situation)}</div></td><td>${esc(wText(t, r.weight))}</td>
+          <td>${r.chosen !== null && r.options[r.chosen] ? MARK[r.chosen] + ' ' + esc(r.options[r.chosen].name) : '-'}</td><td>${esc(r.reason)}</td><td>${esc(r.status)}</td></tr>`).join('')}</table></div></div>`;
+  edt.onclick = () => topicEditor(t);
+  tmain.querySelectorAll('[data-r]').forEach(tr => tr.onclick = () => { const r = rs.find(x => x.responseId === tr.dataset.r); showResponse(t, r); });
+}
+function showResponse(t, r){
+  drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc">とじる</button><h3 style="font-size:17px">${esc(r.classCode)}-${esc(r.seat)} ${esc(r.name)}</h3><p class="muted">${esc(r.status)}・${esc(r.updatedAt)}</p>
+    ${viewTable(t, r.options, r.weight)}<div style="margin-top:10px">${viewSVGMap(t, r.options, r.weight)}</div>
+    <p><b>だれが・どんな場面：</b>${esc(r.user)}／${esc(r.situation)}<br><b>重み：</b>${esc(wText(t, r.weight))}　<b>選んだ案：</b>${r.chosen !== null ? MARK[r.chosen] + ' ' + esc(r.options[r.chosen].name) : '-'}<br>
+    <b>理由：</b>${esc(r.reason)}<br><b>両方を良くする工夫：</b>${esc(r.idea) || '（なし）'}</p></div></div>`;
+  dc.onclick = () => drawer.innerHTML = ''; drawer.firstChild.onclick = ev => { if (ev.target === drawer.firstChild) drawer.innerHTML = ''; };
+}
+function topicEditor(t){
+  t = t || { title:'', kind:'設計', scene:'', axisX:'安全性', hintX:'', axisY:'機能性', hintY:'', classCode:'', open:true };
+  drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc">とじる</button><h3 style="font-size:17px">${t.topicId ? 'お題を直す' : 'お題をつくる'}</h3>
+    <div class="form2" style="margin-top:10px">
+      <label class="field wide"><span>お題</span><input id="e1" value="${esc(t.title)}" placeholder="例：自転車用ヘルメット"></label>
+      <label class="field"><span>種類</span><select id="e2"><option ${t.kind === '設計' ? 'selected' : ''}>設計</option><option ${t.kind === '評価' ? 'selected' : ''}>評価</option></select></label>
+      <label class="field"><span>配るクラス（空なら全員）</span><input id="e8" value="${esc(t.classCode)}" placeholder="1-1"></label>
+      <label class="field wide"><span>場面の説明</span><textarea id="e3">${esc(t.scene)}</textarea></label>
+      <label class="field"><span class="tx">視点X</span><input id="e4" value="${esc(t.axisX)}"></label>
+      <label class="field"><span class="ty">視点Y</span><input id="e6" value="${esc(t.axisY)}"></label>
+      <label class="field"><span>Xの点をつけるヒント</span><input id="e5" value="${esc(t.hintX)}"></label>
+      <label class="field"><span>Yの点をつけるヒント</span><input id="e7" value="${esc(t.hintY)}"></label>
+      <label class="field wide" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="e9" style="width:auto" ${t.open ? 'checked' : ''}> 生徒に配る</label></div>
+    <p class="muted">視点の組み合わせの例：安全性×機能性／安全性×使いやすさ／丈夫さ×材料の少なさ（経済性）／収量×環境への負荷</p>
+    <p class="muted">記入例を先生画面から書く機能は次の版（いまは見本のお題だけに入っています）。</p>
+    <div class="nav"><span></span><button class="main" id="es">保存する</button></div></div></div>`;
+  dc.onclick = () => drawer.innerHTML = '';
+  es.onclick = async () => {
+    if (!e1.value.trim() || !e4.value.trim() || !e6.value.trim()) { alert('お題と2つの視点は必ず書いてください'); return; }
+    const nt = { topicId:t.topicId, title:e1.value.trim(), kind:e2.value, scene:e3.value.trim(), axisX:e4.value.trim(), hintX:e5.value.trim(), axisY:e6.value.trim(), hintY:e7.value.trim(), classCode:e8.value.trim(), open:e9.checked };
+    const res = await Api.saveTopic(nt); drawer.innerHTML = ''; S.t.sel = res.topicId; teacherHome(); };
+}
+
+/* ===== [S16] 開発モード（先生が出した技術の課題で、生徒が自分でトレードオフを決めて課題をつくる） ===== */
+const DEV_STEPS = ['課題を読む','だれの困りごと？','トレードオフを決める','案を比べる','課題を決める','開発の記録'];
+function devAx(d){ d = d || S.d; return { axisX: d.axisX || '視点X', axisY: d.axisY || '視点Y' }; }
+/** 段ごとの「済」。SPEC §9.2 */
+function devDone(i, d){
+  d = d || S.d; const named = d.options.filter(o => o.name && o.name.trim());
+  if (i === 1) return !!(d.user.trim() && (d.now.trim() || d.ideal.trim()));
+  if (i === 2) return !!(d.axisX && d.axisY && d.axisX !== d.axisY && d.conflict.trim());
+  if (i === 3) return named.length >= 2 && named.every(o => o.x && o.y);
+  if (i === 4) return d.weight !== null && d.chosen !== null && !!d.task.trim();
+  if (i === 5) return d.cycles.length > 0;
+  return false;
+}
+function devStageKey(d){ for (let i = 1; i <= 4; i++) if (!devDone(i, d)) return i; return 5; }
+function devStage(d){ const k = devStageKey(d); return k < 5 ? DEV_STEPS[k] : (d.cycles.length ? '開発中（版' + d.cycles.length + '）' : '開発の記録'); }
+function modeTabs(){
+  return `<nav class="modes"><button class="${S.mode === 'dev' ? 'on' : ''}" onclick="setMode('dev')">開発（課題設定）</button>` +
+    `<button class="${S.mode === 'learn' ? 'on' : ''}" onclick="setMode('learn')">練習（お題）</button></nav>`;
+}
+function setMode(m){ S.mode = m; try { localStorage.setItem('oriai.mode', m); } catch(e){} S.screen = 'home'; render(); }
+function newDev(id){ return { projectId:id, user:'', scene:'', ideal:'', now:'', axisX:'', axisY:'', conflict:'', goalX:'', goalY:'',
+  options:[{name:'',note:''},{name:'',note:''}], weight:null, chosen:null, reason:'', task:'', cycles:[], status:'書きかけ' }; }
+function markSteps(done){
+  document.querySelectorAll('.steps [data-step]').forEach(b => { const i = +b.dataset.step, has = !!b.querySelector('.done');
+    if (done(i) && !has) b.insertAdjacentHTML('beforeend', ' <span class="done">済</span>'); if (!done(i) && has) b.querySelector('.done').remove(); });
+}
+
+async function studentDevHome(){
+  const [a, b] = await Promise.all([Api.getProjects(), Api.getMyDevList()]);
+  S.projects = a.projects || []; const mine = b.list || [];
+  const st = id => { const m = mine.find(x => x.projectId === id); return m ? 'いま：' + m.stage : 'まだ書いていない'; };
+  app.innerHTML = modeTabs() + `
+    <div class="who"><div><label>組</label><input class="f" id="mc" value="${esc(S.me.classCode)}" placeholder="1-1"></div>
+      <div><label>番号</label><input class="f" id="ms" value="${esc(S.me.seat)}" inputmode="numeric"></div>
+      <div><label>名前</label><input class="n" id="mn" value="${esc(S.me.name)}"></div>
+      <span class="muted">先生が出した技術の課題について、使う人とトレードオフを自分で決めて、自分の課題をつくります。</span></div>
+    <h2 style="font-size:17px;margin-bottom:10px">技術の課題</h2>
+    <div class="topics">${S.projects.map(p => `<button class="topic" data-p="${esc(p.projectId)}">
+        <span><span class="tag">開発</span></span><b style="font-size:16px">${esc(p.title)}</b>
+        <span class="muted">${esc(p.desc)}</span><span class="state">${esc(st(p.projectId))}</span></button>`).join('')}</div>`;
+  ['mc','ms','mn'].forEach(id => document.getElementById(id).oninput = () => {
+    S.me = { classCode: mc.value.trim(), seat: String(ms.value).trim(), name: mn.value.trim() };
+    try { localStorage.setItem('oriai.me', JSON.stringify(S.me)); } catch(e){} });
+  app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => openProject(b.dataset.p));
+}
+async function openProject(id){
+  if (!S.me.name) { alert('先に組・番号・名前を書いてください'); document.getElementById('mn').focus(); return; }
+  S.p = S.projects.find(p => p.projectId === id);
+  const res = await Api.getMyDev(id);
+  S.d = res.dev || newDev(id);
+  S.dstep = res.dev ? devStageKey(S.d) : 0; S.screen = 'dev';
+  S.savedAt = res.dev ? '保存ずみ ' + res.dev.updatedAt.slice(11) : '';
+  render();
+}
+function devWork(){
+  const p = S.p, d = S.d;
+  app.innerHTML = `
+    <div class="workhead"><button class="quiet" id="back">← 課題の一覧</button><h2>${esc(p.title)}</h2><span class="tag">開発</span>
+      <div class="right"><span class="saved" id="saved">${esc(S.savedAt)}</span>
+      <button class="main" id="submit" ${devDone(4) ? '' : 'disabled'}>${d.status === '課題提出' ? '課題を出し直す' : '課題を提出する'}</button></div></div>
+    <nav class="steps">${DEV_STEPS.map((n,i) => `<button data-step="${i}" class="${S.dstep === i ? 'on' : ''}"><b>${i}</b>${n}${devDone(i) ? ' <span class="done">済</span>' : ''}</button>`).join('')}</nav>
+    <div class="work"><div id="left"></div><div id="right"></div></div>`;
+  back.onclick = () => { S.screen = 'home'; render(); };
+  submit.onclick = async () => { d.status = '課題提出'; await devSave(); alert('課題を提出しました。このあとは「開発の記録」に、試作のたびに書き足していきます。'); S.dstep = 5; render(); };
+  app.querySelectorAll('[data-step]').forEach(b => b.onclick = () => { S.dstep = +b.dataset.step; render(); });
+  devStep();
+}
+/** 入力のたびに 0.7 秒待ってから保存 */
+function devTouch(){
+  const el = document.getElementById('saved'); if (el) el.textContent = '保存中…';
+  clearTimeout(S.saveTimer); S.saveTimer = setTimeout(devSave, 700);
+  const sb = document.getElementById('submit'); if (sb) sb.disabled = !devDone(4);
+  markSteps(i => devDone(i));
+}
+async function devSave(){
+  const v = Object.assign({}, S.d, { classCode:S.me.classCode, seat:S.me.seat, name:S.me.name });
+  const res = await Api.saveDev(v);
+  if (res.success) { S.savedAt = '保存しました ' + res.updatedAt.slice(11); S.d.updatedAt = res.updatedAt; }
+  else S.savedAt = '保存できませんでした（ログを見てください）';
+  const el = document.getElementById('saved'); if (el) el.textContent = S.savedAt;
+}
+function composeTask(d){
+  const c = d.chosen !== null && d.options[d.chosen] ? d.options[d.chosen].name : '（選んだ案）';
+  const now = (d.now || '（現状）').replace(/[。．.]+$/, '');
+  return `${d.user || '（使う人）'}が${d.scene || '（場面）'}に、${now}という困りごとを解決するために、` +
+    `${d.axisX}は「${d.goalX || '（目標）'}」を守りつつ、${d.axisY}は「${d.goalY || '（目標）'}」をめざした、${c}をつくる。`;
+}
+/** 課題文の点検（入っているかだけを見る。良し悪しは先生と本人が見る） */
+function taskChecks(d){
+  const t = d.task || '', c = d.chosen !== null && d.options[d.chosen] ? d.options[d.chosen].name : '';
+  return [
+    ['使う人が入っている', !!d.user && t.includes(d.user)],
+    ['2つの視点が入っている', !!d.axisX && !!d.axisY && t.includes(d.axisX) && t.includes(d.axisY)],
+    ['目標（確かめ方）が入っている', (!!d.goalX && t.includes(d.goalX)) || (!!d.goalY && t.includes(d.goalY))],
+    ['つくるものが入っている', (!!c && t.includes(c)) || /つくる|作る|製作/.test(t)]
+  ];
+}
+function devPath(d){
+  const path = []; const c = d.chosen !== null ? d.options[d.chosen] : null;
+  if (c && c.x && c.y) path.push({ x:c.x, y:c.y, plan:true });
+  d.cycles.forEach((v, i) => { if (v.x && v.y) path.push({ x:v.x, y:v.y, label:String(i + 1) }); });
+  return path;
+}
+function devStep(){
+  const p = S.p, d = S.d, L = document.getElementById('left'), Rt = document.getElementById('right'), ax = devAx();
+  const nav = lbl => `<div class="nav"><button class="quiet" data-go="${S.dstep - 1}" ${S.dstep ? '' : 'style="visibility:hidden"'}>← もどる</button>` +
+    (lbl ? `<button class="main" data-go="${S.dstep + 1}">${lbl} →</button>` : '<span class="muted">書けたら右上の「課題を提出する」</span>') + '</div>';
+  const tf = (id, label, val, ph, area) => `<label class="field"><span>${label}</span>` +
+    (area ? `<textarea id="${id}" placeholder="${esc(ph)}">${esc(val)}</textarea>` : `<input id="${id}" value="${esc(val)}" placeholder="${esc(ph)}">`) + '</label>';
+  const bind = map => Object.keys(map).forEach(id => { const el = document.getElementById(id); if (el) el.oninput = () => { d[map[id]] = el.value; devTouch(); }; });
+  const gate = (i, msg) => `<div class="panel"><p class="lead">${msg}</p><button class="main" data-go="${i}">${DEV_STEPS[i]}へ →</button></div>`;
+  const cons = `<div class="constraint"><b>条件</b><br>${esc(p.constraints)}</div>`;
+  const goalBox = `<div class="axisbox"><div class="ax"><span class="tx">${esc(ax.axisX)}</span><div class="muted">目標：${esc(d.goalX) || '（未記入）'}</div></div>` +
+    `<div class="ay"><span class="ty">${esc(ax.axisY)}</span><div class="muted">目標：${esc(d.goalY) || '（未記入）'}</div></div></div>`;
+
+  if (S.dstep === 0) {
+    L.innerHTML = `<div class="panel"><h3>技術の課題</h3><p class="lead" style="font-size:17px">${esc(p.desc)}</p>${cons}
+      <p class="lead">この課題では、全員が同じものをつくるわけではありません。<b>だれの困りごとか</b>を決め、<b>ぶつかり合う2つの視点を自分で選んで</b>、どこで折り合うかを決め、自分の課題にします。</p>
+      <div class="field"><span>先生が出した視点の候補（ほかの視点を自分で書いてもよい）</span>${(p.candidates || []).map(c => `<span class="tag" style="margin:0 4px 4px 0">${esc(c)}</span>`).join('')}</div>${nav('はじめる')}</div>`;
+    Rt.innerHTML = `<div class="panel"><h3>流れ</h3><ol style="margin:0;padding-left:20px">
+      <li>だれの困りごとかを決める（理想と現状の差）</li><li>ぶつかり合う2つの視点を選び、目標を決める</li>
+      <li>案を出して、2つの視点で比べる</li><li>折り合いを決めて課題文にし、提出する</li><li>試作するたびに記録して、点の動きを見る</li></ol></div>`;
+  }
+  if (S.dstep === 1) {
+    L.innerHTML = `<div class="panel"><h3>1　だれの困りごと？</h3><p class="okline">書けるところだけでOK。あとから戻って直せます。</p>
+      <div class="form2">${tf('du', 'だれが使う？', d.user, '例：祖母')}${tf('ds', 'どんな場面で？', d.scene, '例：台所で調味料を取るとき')}</div>
+      ${tf('di', '理想：どうなっていてほしい？', d.ideal, '例：見たいびんがすぐ取れる', true)}
+      ${tf('dn', '現状：いま何が起きている？', d.now, '例：奥のびんを取ろうとして、手前のびんを倒してしまう', true)}${nav('トレードオフを決める')}</div>`;
+    Rt.innerHTML = `<div class="panel"><h3>理想と現状の差が「問題」</h3><p class="lead">差がはっきりしていて、この課題の条件の中で縮められそうなものを選ぼう。</p>${cons}</div>`;
+    bind({ du:'user', ds:'scene', di:'ideal', dn:'now' });
+  }
+  if (S.dstep === 2) {
+    const cands = p.candidates || [], ownX = d.axisX && !cands.includes(d.axisX) ? d.axisX : '', ownY = d.axisY && !cands.includes(d.axisY) ? d.axisY : '';
+    L.innerHTML = `<div class="panel"><h3>2　トレードオフを決める</h3>
+      <p class="lead">${esc(d.user || 'その人')}の困りごとを解決するとき、<b>ぶつかり合う2つの視点</b>を選ぼう。片方を上げると、もう片方が下がる2つです。</p>
+      <div class="field"><span class="tx">いちばん守りたい視点（X）</span><div class="cands cx">${cands.map(c => `<button data-cx="${esc(c)}" class="${d.axisX === c ? 'on' : ''}">${esc(c)}</button>`).join('')}</div>
+        <input id="dxo" value="${esc(ownX)}" placeholder="候補にないときは自分で書く"></div>
+      <div class="field"><span class="ty">それとぶつかる視点（Y）</span><div class="cands cy">${cands.map(c => `<button data-cy="${esc(c)}" class="${d.axisY === c ? 'on' : ''}" ${d.axisX === c ? 'disabled' : ''}>${esc(c)}</button>`).join('')}</div>
+        <input id="dyo" value="${esc(ownY)}" placeholder="候補にないときは自分で書く"></div>
+      ${d.axisX && d.axisY ? (d.axisX === d.axisY ? '<p class="bestmsg">XとYに同じ視点が入っています。ちがう2つを選んでください。</p>' :
+        tf('dc', `${esc(d.axisX)}を上げようとすると、${esc(d.axisY)}が下がるのはなぜ？`, d.conflict, '例：たくさん入れようと段を高くすると、倒れやすくなる', true) +
+        `<div class="form2">${tf('dgx', `<span class="tx">${esc(d.axisX)}</span>の目標（どう確かめる？）`, d.goalX, '例：中身を入れて10°かたむけても倒れない')}
+          ${tf('dgy', `<span class="ty">${esc(d.axisY)}</span>の目標（どう確かめる？）`, d.goalY, '例：びんが8本入る')}</div>`) : ''}
+      ${nav('案を比べる')}</div>`;
+    Rt.innerHTML = `<div class="panel"><h3>ぶつかり合っているか、たしかめよう</h3><ul style="margin:0;padding-left:20px">
+      <li>両方とも同時に上げられる2つなら、トレードオフではありません。</li>
+      <li>Xを上げる工夫を1つ思いうかべて、そのときYがどうなるかを考えよう。</li>
+      <li>目標は「数」や「ためし方」で書くと、試作したあとに確かめられます。</li></ul>${cons}</div>`;
+    L.querySelectorAll('[data-cx]').forEach(b => b.onclick = () => { d.axisX = b.dataset.cx; if (d.axisY === d.axisX) d.axisY = ''; devTouch(); devStep(); });
+    L.querySelectorAll('[data-cy]').forEach(b => b.onclick = () => { d.axisY = b.dataset.cy; devTouch(); devStep(); });
+    dxo.oninput = () => { d.axisX = dxo.value.trim(); devTouch(); }; dxo.onchange = () => devStep();
+    dyo.oninput = () => { d.axisY = dyo.value.trim(); devTouch(); }; dyo.onchange = () => devStep();
+    bind({ dc:'conflict', dgx:'goalX', dgy:'goalY' });
+  }
+  if (S.dstep === 3) {
+    if (!devDone(2)) { L.innerHTML = gate(2, '先に「トレードオフを決める」で、ぶつかり合う2つの視点を選んでください。'); Rt.innerHTML = ''; }
+    else {
+      L.innerHTML = `<div class="panel"><h3>3　案を比べる</h3>
+        <p class="lead">${esc(d.user)}の困りごとを解決する案を2〜4つ出して、<span class="tx">${esc(d.axisX)}</span>と<span class="ty">${esc(d.axisY)}</span>で1〜5点をつけよう。</p>
+        <p class="okline">点は、目標にどれだけ近いかでつける。理由も1行。</p>
+        ${d.options.map((o,i) => `<div class="rate"><div class="opt"><span class="num">${MARK[i]}</span><input data-o="${i}" data-k="name" value="${esc(o.name)}" placeholder="案の名前">
+            <input class="note" data-o="${i}" data-k="note" value="${esc(o.note)}" placeholder="ひとこと説明（形・寸法・しくみ）">
+            <button class="quiet" data-del="${i}" ${d.options.length <= 2 ? 'disabled' : ''} aria-label="消す">×</button></div>
+          <div class="row"><span class="tx">${esc(d.axisX)}</span><div class="score sx">${[1,2,3,4,5].map(n => `<button data-sc="${i}" data-a="x" data-v="${n}" class="${o.x === n ? 'on' : ''}">${n}</button>`).join('')}</div>
+            <input data-o="${i}" data-k="whyX" value="${esc(o.whyX)}" placeholder="${esc(d.axisX)}の理由"></div>
+          <div class="row"><span class="ty">${esc(d.axisY)}</span><div class="score sy">${[1,2,3,4,5].map(n => `<button data-sc="${i}" data-a="y" data-v="${n}" class="${o.y === n ? 'on' : ''}">${n}</button>`).join('')}</div>
+            <input data-o="${i}" data-k="whyY" value="${esc(o.whyY)}" placeholder="${esc(d.axisY)}の理由"></div></div>`).join('')}
+        <button class="quiet" id="add" ${d.options.length >= 4 ? 'disabled' : ''}>＋ 案を足す（4つまで）</button>${nav('課題を決める')}</div>`;
+      Rt.innerHTML = viewPanel(ax, d.options, null) + `<div class="panel">${goalBox}</div>`;
+      L.querySelectorAll('input[data-o]').forEach(el => el.oninput = () => { d.options[+el.dataset.o][el.dataset.k] = el.value; devTouch(); });
+      L.querySelectorAll('[data-sc]').forEach(b => b.onclick = () => { d.options[+b.dataset.sc][b.dataset.a] = +b.dataset.v; devTouch(); devStep(); });
+      L.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm(MARK[+b.dataset.del] + ' の案を消しますか？')) {
+        d.options.splice(+b.dataset.del, 1); if (d.chosen !== null && d.chosen >= d.options.length) d.chosen = null; devTouch(); devStep(); } });
+      add.onclick = () => { d.options.push({ name:'', note:'' }); devTouch(); devStep(); };
+    }
+  }
+  if (S.dstep === 4) {
+    if (!devDone(3)) { L.innerHTML = gate(3, '先に「案を比べる」で、案を2つ以上出して点をつけてください。'); Rt.innerHTML = ''; }
+    else {
+      const bw = d.weight === null ? null : bestUnderWeight(d.options, d.weight);
+      const diff = bw && d.chosen !== null && !bw.best.includes(d.chosen);
+      const list = d.options.map((o,i) => ({o,i})).filter(v => v.o.name && v.o.name.trim());
+      L.innerHTML = `<div class="panel"><h3>4　課題を決める</h3>
+        <div class="field"><span>${esc(d.user)}が${esc(d.scene || 'その場面')}で使うなら、どちらを重く見る？</span>
+          <div class="weights">${weightLabels(ax).map(x => `<button data-w="${x.w}" class="${d.weight === x.w ? 'on' : ''}">${esc(x.t)}</button>`).join('')}</div></div>
+        <div class="bestmsg">${bw ? (bw.best.length ? 'いまの重みでいちばん点が高いのは <b>' + bw.best.map(i => MARK[i] + ' ' + esc(d.options[i].name)).join('、') + '</b>' + (bw.best.length > 1 ? '（同点）' : '') : '') : '重みを選ぶと、いちばん点が高い案が出ます。'}</div>
+        <div class="field"><span>つくる案（点が高い案でなくてもよい）</span><div class="choose">${list.map(({o,i}) => `<label class="${d.chosen === i ? 'on' : ''}"><input type="radio" name="dch" value="${i}" ${d.chosen === i ? 'checked' : ''}>${MARK[i]} ${esc(o.name)}</label>`).join('')}</div></div>
+        ${tf('dr', diff ? '<b>点がいちばん高い案とちがう案にした理由</b>' : '選んだ理由（使う人・場面とつなげて）', d.reason, '', true)}
+        <div class="field"><span>課題文（何のために、どこで折り合って、何をつくるか）</span>
+          <button class="quiet" id="compose" style="margin-bottom:6px">下書きを組み立てる</button>
+          <textarea id="dt" style="min-height:96px" placeholder="「下書きを組み立てる」を押すと、ここまで書いたことから下書きができます。自分の言葉に直そう。">${esc(d.task)}</textarea></div>
+        <ul class="checks" id="checks"></ul>${nav(null)}</div>`;
+      Rt.innerHTML = viewPanel(ax, d.options, d.weight) + `<div class="panel">${goalBox}</div>`;
+      const drawChecks = () => { checks.innerHTML = taskChecks(d).map(c => `<li class="${c[1] ? 'y' : 'n'}">${c[1] ? '○' : '―'} ${c[0]}</li>`).join(''); };
+      drawChecks();
+      L.querySelectorAll('[data-w]').forEach(b => b.onclick = () => { d.weight = +b.dataset.w; devTouch(); devStep(); });
+      L.querySelectorAll('input[name=dch]').forEach(el => el.onchange = () => { d.chosen = +el.value; devTouch(); devStep(); });
+      dr.oninput = () => { d.reason = dr.value; devTouch(); };
+      dt.oninput = () => { d.task = dt.value; devTouch(); drawChecks(); };
+      compose.onclick = () => { if (d.task.trim() && !confirm('いま書いてある課題文を、組み立てた下書きで置きかえますか？')) return;
+        d.task = composeTask(d); dt.value = d.task; devTouch(); drawChecks(); };
+    }
+  }
+  if (S.dstep === 5) {
+    if (!devDone(4)) { L.innerHTML = gate(4, '試作の前に課題を決めます。先に「課題を決める」で課題文を書いてください。'); Rt.innerHTML = ''; }
+    else {
+      L.innerHTML = `<div class="panel"><h3>5　開発の記録</h3>
+        <p class="lead">試作・製作のたびに1つ記録しよう。目標に近づいたか、片方を上げてもう片方を下げていないかを見ます。</p>
+        <div class="taskbox">${esc(d.task)}</div>${goalBox}
+        <div style="margin-top:10px">${d.cycles.map((v,i) => `<div class="cycle"><div style="display:flex;gap:10px;align-items:center"><b>版${i + 1}</b>
+            <input type="date" data-c="${i}" data-k="date" value="${esc(v.date)}" style="width:auto">
+            <button class="quiet" data-cdel="${i}" style="margin-left:auto">この版を消す</button></div>
+          ${`<label class="field"><span>つくった・直したこと</span><input data-c="${i}" data-k="what" value="${esc(v.what)}" placeholder="例：段ボールで試作して、びんを並べた"></label>`}
+          <div class="row"><span class="tx">いまの${esc(d.axisX)}</span><div class="score sx">${[1,2,3,4,5].map(n => `<button data-cs="${i}" data-a="x" data-v="${n}" class="${v.x === n ? 'on' : ''}">${n}</button>`).join('')}</div><span></span></div>
+          <div class="row"><span class="ty">いまの${esc(d.axisY)}</span><div class="score sy">${[1,2,3,4,5].map(n => `<button data-cs="${i}" data-a="y" data-v="${n}" class="${v.y === n ? 'on' : ''}">${n}</button>`).join('')}</div><span></span></div>
+          <label class="field"><span>確かめた結果（目標と比べて）</span><textarea data-c="${i}" data-k="result" placeholder="例：倒れなかったが、びんが6本しか入らない">${esc(v.result)}</textarea></label>
+          <label class="field"><span>次に直すこと</span><input data-c="${i}" data-k="next" value="${esc(v.next)}" placeholder="例：段の奥行きを2cm広げる"></label></div>`).join('')}</div>
+        <button class="quiet" id="addc">＋ 版を足す（試作・製作のたびに）</button>
+        <div class="nav"><button class="quiet" data-go="4">← もどる</button><span></span></div></div>`;
+      Rt.innerHTML = `<div class="panel"><h3>計画からの動き</h3>${viewSVGMap(ax, [], null, { path: devPath(d) })}
+        <p class="muted" style="margin:6px 0 0">点線の丸＝計画（選んだ案）。黒い丸＝版ごとの「いまの点」。右上に向かっていれば両方が良くなっている。片方だけ動いていたら、もう片方が下がっていないか見よう。</p></div>`;
+      L.querySelectorAll('[data-c]').forEach(el => el.oninput = () => { d.cycles[+el.dataset.c][el.dataset.k] = el.value; devTouch(); });
+      L.querySelectorAll('[data-cs]').forEach(b => b.onclick = () => { d.cycles[+b.dataset.cs][b.dataset.a] = +b.dataset.v; devTouch(); devStep(); });
+      L.querySelectorAll('[data-cdel]').forEach(b => b.onclick = () => { if (confirm('版' + (+b.dataset.cdel + 1) + ' の記録を消しますか？消すと元にもどせません。')) { d.cycles.splice(+b.dataset.cdel, 1); devTouch(); devStep(); } });
+      addc.onclick = () => { d.cycles.push({ date: stamp().slice(0, 10), what:'', x:null, y:null, result:'', next:'' }); devTouch(); devStep(); };
+    }
+  }
+  document.querySelectorAll('#left [data-go]').forEach(b => b.onclick = () => { S.dstep = Math.max(0, Math.min(5, +b.dataset.go)); render(); });
+}
+
+/* --- 先生：開発モード --- */
+async function teacherDevHome(){
+  const res = await Api.teacherProjects(); S.t.projects = res.projects || [];
+  if (!S.t.psel && S.t.projects.length) S.t.psel = S.t.projects[0].projectId;
+  S.t.devs = S.t.psel ? ((await Api.teacherDevs(S.t.psel)).devs || []) : [];
+  const p = S.t.projects.find(x => x.projectId === S.t.psel);
+  app.innerHTML = modeTabs() + `<div class="tgrid"><div class="tlist"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="font-size:16px">技術の課題</h2><button class="quiet" id="newp">＋ つくる</button></div>
+      ${S.t.projects.map(x => `<button data-pp="${esc(x.projectId)}" class="${x.projectId === S.t.psel ? 'on' : ''}"><b>${esc(x.title)}</b>${x.open ? '' : ' <span class="tag">配っていない</span>'}<br>
+        <span class="muted">課題を提出 ${x.fixed}・書いている人 ${x.total}</span></button>`).join('')}</div><div id="tmain"></div></div>`;
+  app.querySelectorAll('[data-pp]').forEach(b => b.onclick = () => { S.t.psel = b.dataset.pp; teacherDevHome(); });
+  newp.onclick = () => projectEditor(null);
+  if (p) teacherProject(p);
+}
+function teacherProject(p){
+  const ds = S.t.devs, fixed = ds.filter(d => d.status === '課題提出'), logged = ds.filter(d => d.cycles.length);
+  const pairs = {}; ds.filter(d => d.axisX && d.axisY).forEach(d => { const k = d.axisX + ' × ' + d.axisY; pairs[k] = (pairs[k] || 0) + 1; });
+  const pl = Object.entries(pairs).sort((a,b) => b[1] - a[1]), mx = Math.max(1, ...pl.map(x => x[1]));
+  const stages = DEV_STEPS.slice(1).map((n, i) => [n, ds.filter(d => devStageKey(d) === i + 1).length]);
+  const sorted = ds.slice().sort((a,b) => (a.classCode + a.seat.padStart(3,'0')).localeCompare(b.classCode + b.seat.padStart(3,'0')));
+  tmain.innerHTML = `<div class="panel"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="font-size:18px">${esc(p.title)}</h2><span class="tag">開発</span>
+      <button class="quiet" id="edp" style="margin-left:auto">課題を直す</button></div>
+      <p class="muted" style="margin:4px 0">${esc(p.desc)}</p><div class="constraint" style="margin:6px 0"><b>条件</b>　${esc(p.constraints)}</div>
+      <div class="kpis"><span>課題を提出 <b>${fixed.length}</b></span><span>書きかけ <b>${ds.length - fixed.length}</b></span><span>開発の記録あり <b>${logged.length}</b></span></div></div>
+    <div class="cls" style="margin-top:12px"><div class="panel"><h3>選んだトレードオフ（X × Y）</h3>
+        ${pl.length ? pl.map(([k,n]) => `<div class="pair"><span>${esc(k)}</span><div class="pbar"><div style="width:${n / mx * 100}%"></div></div><b>${n}人</b></div>`).join('') : '<p class="muted">まだだれも選んでいません</p>'}
+        <p class="muted" style="margin:6px 0 0">同じ課題でも、人によってぶつかり合う視点がちがう。授業で紹介する組み合わせを選ぶときに。</p>
+        <h3 style="margin-top:14px">いまの段</h3>${stages.map(([n,c]) => `<div class="pair"><span>${esc(n)}</span><div class="pbar"><div style="width:${ds.length ? c / ds.length * 100 : 0}%"></div></div><b>${c}人</b></div>`).join('')}</div>
+      <div class="panel" style="overflow-x:auto"><h3>一覧（行を押すと全部見られます）</h3><table class="tbl"><tr><th>組-番</th><th>名前</th><th>使う人</th><th>トレードオフ</th><th>課題文</th><th>版</th><th>いまの段</th></tr>
+        ${sorted.map(d => `<tr class="click" data-dv="${esc(d.devId)}"><td>${esc(d.classCode)}-${esc(d.seat)}</td><td>${esc(d.name)}</td><td>${esc(d.user)}</td>
+          <td>${d.axisX ? `<span class="tx">${esc(d.axisX)}</span> × <span class="ty">${esc(d.axisY)}</span>` : '-'}</td>
+          <td>${esc(d.task.length > 50 ? d.task.slice(0, 50) + '…' : d.task)}</td><td>${d.cycles.length}</td><td>${esc(devStage(d))}</td></tr>`).join('')}</table></div></div>`;
+  edp.onclick = () => projectEditor(p);
+  tmain.querySelectorAll('[data-dv]').forEach(tr => tr.onclick = () => showDev(p, ds.find(x => x.devId === tr.dataset.dv)));
+}
+function showDev(p, d){
+  const ax = devAx(d);
+  drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc">とじる</button><h3 style="font-size:17px">${esc(d.classCode)}-${esc(d.seat)} ${esc(d.name)}</h3>
+    <p class="muted">${esc(d.status)}・${esc(d.updatedAt)}・いま：${esc(devStage(d))}</p>
+    <h3 style="margin-top:10px">1 だれの困りごと</h3><p style="margin:4px 0">${esc(d.user)}／${esc(d.scene)}<br><b>理想：</b>${esc(d.ideal)}<br><b>現状：</b>${esc(d.now)}</p>
+    <h3 style="margin-top:10px">2 トレードオフ</h3><p style="margin:4px 0"><span class="tx">${esc(ax.axisX)}</span> × <span class="ty">${esc(ax.axisY)}</span><br>${esc(d.conflict)}<br>
+      <b>目標：</b>${esc(d.goalX)}／${esc(d.goalY)}</p>
+    <h3 style="margin-top:10px">3・4 案と課題</h3>${viewTable(ax, d.options, d.weight)}
+    <p style="margin:6px 0"><b>重み：</b>${esc(wText(ax, d.weight))}　<b>理由：</b>${esc(d.reason)}</p><div class="taskbox">${esc(d.task) || '（まだ）'}</div>
+    <h3 style="margin-top:10px">5 開発の記録</h3>${d.cycles.length ? d.cycles.map((v,i) => `<p style="margin:4px 0"><b>版${i + 1}</b>（${esc(v.date)}）${esc(v.what)}<br>
+      <span class="tx">${esc(ax.axisX)} ${v.x || '-'}</span>・<span class="ty">${esc(ax.axisY)} ${v.y || '-'}</span>　${esc(v.result)}<br><span class="muted">次：${esc(v.next)}</span></p>`).join('') +
+      viewSVGMap(ax, [], null, { path: devPath(d) }) : '<p class="muted">まだありません</p>'}</div></div>`;
+  dc.onclick = () => drawer.innerHTML = ''; drawer.firstChild.onclick = ev => { if (ev.target === drawer.firstChild) drawer.innerHTML = ''; };
+}
+function projectEditor(p){
+  p = p || { title:'', desc:'', constraints:'', candidates:['安全性','機能性','使いやすさ','丈夫さ','見た目','材料の少なさ','製作のしやすさ','環境への負荷の少なさ'], classCode:'', open:true };
+  drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc">とじる</button><h3 style="font-size:17px">${p.projectId ? '課題を直す' : '技術の課題をつくる'}</h3>
+    <div class="form2" style="margin-top:10px">
+      <label class="field wide"><span>課題の名前</span><input id="q1" value="${esc(p.title)}" placeholder="例：生活の困りごとを解決する木製品"></label>
+      <label class="field wide"><span>課題の説明</span><textarea id="q2">${esc(p.desc)}</textarea></label>
+      <label class="field wide"><span>条件（材料・時間・工具・使える部品）</span><textarea id="q3">${esc(p.constraints)}</textarea></label>
+      <label class="field wide"><span>視点の候補（「、」で区切る。生徒はここから2つ選ぶか、自分で書く）</span><input id="q4" value="${esc((p.candidates || []).join('、'))}"></label>
+      <label class="field"><span>配るクラス（空なら全員）</span><input id="q5" value="${esc(p.classCode)}" placeholder="1-1"></label>
+      <label class="field" style="display:flex;gap:8px;align-items:center;margin-top:28px"><input type="checkbox" id="q6" style="width:auto" ${p.open ? 'checked' : ''}> 生徒に配る</label></div>
+    <div class="nav"><span></span><button class="main" id="qs">保存する</button></div></div></div>`;
+  dc.onclick = () => drawer.innerHTML = '';
+  qs.onclick = async () => {
+    const cands = q4.value.split(/[、,，\n]+/).map(x => x.trim()).filter(Boolean);
+    if (!q1.value.trim() || cands.length < 2) { alert('課題の名前と、視点の候補を2つ以上書いてください'); return; }
+    const np = { projectId:p.projectId, title:q1.value.trim(), desc:q2.value.trim(), constraints:q3.value.trim(), candidates:cands, classCode:q5.value.trim(), open:q6.checked };
+    const res = await Api.saveProject(np); drawer.innerHTML = ''; S.t.psel = res.projectId; teacherDevHome(); };
+}
+
+/* ===== [S15] 描画の入口・デモ切替 ===== */
+function render(){
+  document.querySelectorAll('#demo [data-role]').forEach(b => b.classList.toggle('on', b.dataset.role === S.role));
+  document.querySelectorAll('#demo [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === S.view));
+  drawer.innerHTML = '';
+  if (S.role === 'teacher') return S.mode === 'dev' ? teacherDevHome() : teacherHome();
+  if (S.screen === 'work') return studentWork();
+  if (S.screen === 'dev') return devWork();
+  return S.mode === 'dev' ? studentDevHome() : studentHome();
+}
+document.querySelectorAll('#demo [data-role]').forEach(b => b.onclick = () => { S.role = b.dataset.role; render(); });
+document.querySelectorAll('#demo [data-view]').forEach(b => b.onclick = () => { S.view = b.dataset.view; try { localStorage.setItem('oriai.view', S.view); } catch(e){}
+  if (S.role === 'student' && S.screen === 'work') { render(); } else render(); });
+document.querySelector('#demo [data-reset]').onclick = async () => { if (!confirm('見本データを入れ直します。この端末で書いたものは消えます。')) return;
+  await MockApi.reset(); S.screen = 'home'; S.t.sel = null; S.t.psel = null; render(); };
+if (IS_GAS) document.querySelector('#demo [data-reset]').classList.add('hide');
+render();
+</script>
+</body>
+</html>
