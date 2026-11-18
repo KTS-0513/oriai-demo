@@ -117,7 +117,19 @@ svg text{font-family:inherit}
 .tlist button.on{border-color:var(--ink);border-width:2px;padding:7px 11px}
 .kpis{display:flex;gap:20px;margin:6px 0 10px;font-size:14px}
 .kpis b{font-size:20px}
-.cls{display:grid;grid-template-columns:420px minmax(0,1fr);gap:16px;align-items:start}
+/* 先生の画面：左のお題（課題）の一覧はしまえる。地図と一覧のあいだのつまみで幅を変える */
+.tgrid.nolist{grid-template-columns:minmax(0,1fr)}
+.tgrid.nolist .tlist{display:none}
+.cls{display:grid;grid-template-columns:var(--mapw,420px) 16px minmax(0,1fr);gap:0;align-items:stretch}
+.cls > .panel{align-self:start;min-width:0}
+.cls .panel svg{max-width:none}
+.split{cursor:col-resize;touch-action:none;display:flex;justify-content:center;border-radius:4px;outline:none}
+.split::before{content:"";width:6px;margin:48px 0;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.split:hover::before,.split.drag::before{border-color:var(--ink)}
+.split:focus-visible{box-shadow:inset 0 0 0 2px var(--ink)}
+.thead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.thead #tgl{min-height:36px;padding:4px 12px;font-size:14px}
+.tbl td:last-child{white-space:nowrap}
 .bars{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;align-items:end;height:90px;margin-top:6px}
 .bars div{background:var(--ink);min-height:2px;border-radius:2px 2px 0 0}
 .barl{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;font-size:11px;color:var(--sub);text-align:center;line-height:1.3}
@@ -150,6 +162,8 @@ svg text{font-family:inherit}
 
 @media (max-width:1000px){
   .work,.tgrid,.cls{grid-template-columns:1fr}
+  .cls{gap:12px}
+  .split{display:none}
   .opt{grid-template-columns:24px 1fr 40px}.opt .note{grid-column:2 / 3}
   .rate .row{grid-template-columns:1fr}
   .axisbox{grid-template-columns:1fr}
@@ -170,7 +184,7 @@ svg text{font-family:inherit}
   </div>
 </header>
 <div id="notice" class="hide"></div>
-<div style="background:#fff8e1;border-bottom:1px solid #e6d9a8;padding:6px 20px;font-size:13px;line-height:1.5"><b>お試し版（見本データ）</b>　書いたものはこのブラウザの中だけに保存され、どこにも送られません。右上の「デモ」で生徒と先生を切りかえ、「見本データを入れ直す」で最初に戻ります。<span style="color:#59636e">（版 2026/11/8 22:45:19）</span></div>
+<div style="background:#fff8e1;border-bottom:1px solid #e6d9a8;padding:6px 20px;font-size:13px;line-height:1.5"><b>お試し版（見本データ）</b>　書いたものはこのブラウザの中だけに保存され、どこにも送られません。右上の「デモ」で生徒と先生を切りかえ、「見本データを入れ直す」で最初に戻ります。<span style="color:#59636e">（版 2026/11/18 23:34:27）</span></div>
 <main id="app"></main>
 <div id="drawer"></div>
 <div id="dbg"><button type="button" onclick="this.parentNode.classList.toggle('open')">ログ</button><pre id="dbglog"></pre></div>
@@ -292,6 +306,14 @@ function seedDevs(){
 const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
 /** サーバーが doGet で置きかえる印（ふつう／アカウント不明） */
 const ROLE_MARK = 'OX_ROLE_STUDENT';
+/** サーバーが doGet で、生徒のホームの中身（base64url）に置きかえる印。開いてすぐ1往復ぶん待たないため */
+const BOOT_MARK = 'OX_BOOT_NONE';
+function bootData(){
+  if (!IS_GAS || /^OX_BOOT/.test(BOOT_MARK)) return null;
+  try { const bin = atob(BOOT_MARK.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)))); }
+  catch(e){ dlog('最初のデータを読めませんでした: ' + e.message); return null; }
+}
 function notice(msg){ const n = document.getElementById('notice'); n.textContent = msg || ''; n.classList.toggle('hide', !msg); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const KEY = 'oriai.v0';
@@ -301,23 +323,27 @@ const MockApi = {
     if (!d.projects) { d.projects = JSON.parse(JSON.stringify(SEED_PROJECTS)); d.devs = seedDevs(); this._save(d); } return d; },
   _save(d){ localStorage.setItem(KEY, JSON.stringify(d)); },
   async reset(){ localStorage.removeItem(KEY); this._db(); return { success:true }; },
-  async getLearnHome(){ const d = this._db(); return { success:true, topics: d.topics.filter(t => t.open), list: d.responses.filter(r => r.email === 'me@example.com').map(r => ({topicId:r.topicId, status:r.status})) }; },
+  async getLearnHome(){ const d = this._db(); return { success:true, full:true, topics: d.topics.filter(t => t.open), list: d.responses.filter(r => r.email === 'me@example.com').map(r => { const c = Object.assign({}, r); delete c.email; return c; }) }; },
   async getMyResponse(topicId){ const d = this._db(); return { success:true, response: d.responses.find(r => r.topicId === topicId && r.email === 'me@example.com') || null }; },
   async saveResponse(r){ const d = this._db(); r.email = 'me@example.com'; r.responseId = r.topicId + ':me'; r.updatedAt = stamp();
     const i = d.responses.findIndex(x => x.responseId === r.responseId); if (i >= 0) d.responses[i] = r; else d.responses.push(r); this._save(d); return { success:true, updatedAt:r.updatedAt }; },
-  async teacherTopics(){ const d = this._db(); return { success:true, topics: d.topics.map(t => Object.assign({}, t, {
+  async teacherTopics(sel){ const d = this._db(); const topics = d.topics.map(t => Object.assign({}, t, {
       sent: d.responses.filter(r => r.topicId === t.topicId && r.status === '提出').length,
-      draft: d.responses.filter(r => r.topicId === t.topicId && r.status !== '提出').length })) }; },
+      draft: d.responses.filter(r => r.topicId === t.topicId && r.status !== '提出').length }));
+    const id = sel || (topics[0] ? topics[0].topicId : '');
+    return { success:true, topics: topics, sel: id, all: d.responses, responses: d.responses.filter(r => r.topicId === id) }; },
   async teacherResponses(topicId){ return { success:true, responses: this._db().responses.filter(r => r.topicId === topicId) }; },
   async saveTopic(t){ const d = this._db(); if (!t.topicId) t.topicId = 'T' + Date.now(); t.updatedAt = stamp();
     const i = d.topics.findIndex(x => x.topicId === t.topicId); if (i >= 0) d.topics[i] = Object.assign(d.topics[i], t); else d.topics.push(Object.assign({example:null}, t)); this._save(d); return { success:true, topicId:t.topicId }; },
   /* --- 開発モード --- */
-  async getDevHome(){ const d = this._db(); return { success:true, projects: d.projects.filter(p => p.open), list: d.devs.filter(x => x.email === 'me@example.com') }; },
+  async getDevHome(){ const d = this._db(); return { success:true, full:true, projects: d.projects.filter(p => p.open), list: d.devs.filter(x => x.email === 'me@example.com') }; },
   async getMyDev(id){ return { success:true, dev: this._db().devs.find(x => x.projectId === id && x.email === 'me@example.com') || null }; },
   async saveDev(v){ const d = this._db(); v.email = 'me@example.com'; v.devId = v.projectId + ':me'; v.updatedAt = stamp();
     const i = d.devs.findIndex(x => x.devId === v.devId); if (i >= 0) d.devs[i] = v; else d.devs.push(v); this._save(d); return { success:true, updatedAt:v.updatedAt }; },
-  async teacherProjects(){ const d = this._db(); return { success:true, projects: d.projects.map(p => { const ds = d.devs.filter(x => x.projectId === p.projectId);
-      return Object.assign({}, p, { total: ds.length, fixed: ds.filter(x => x.status === '課題提出').length }); }) }; },
+  async teacherProjects(psel){ const d = this._db(); const projects = d.projects.map(p => { const ds = d.devs.filter(x => x.projectId === p.projectId);
+      return Object.assign({}, p, { total: ds.length, fixed: ds.filter(x => x.status === '課題提出').length }); });
+    const id = psel || (projects[0] ? projects[0].projectId : '');
+    return { success:true, projects: projects, sel: id, all: d.devs, devs: d.devs.filter(x => x.projectId === id) }; },
   async teacherDevs(id){ return { success:true, devs: this._db().devs.filter(x => x.projectId === id) }; },
   async saveProject(p){ const d = this._db(); if (!p.projectId) p.projectId = 'P' + Date.now(); p.updatedAt = stamp();
     const i = d.projects.findIndex(x => x.projectId === p.projectId); if (i >= 0) d.projects[i] = Object.assign(d.projects[i], p); else d.projects.push(p); this._save(d); return { success:true, projectId:p.projectId }; }
@@ -371,9 +397,12 @@ function weightLabels(t){ return [
 function wText(t, w){ const l = weightLabels(t).find(x => x.w === w); return l ? l.t : '未選択'; }
 
 /* ===== [S11] 状態 ===== */
-const S = { role:'student', mode:'dev', p:null, d:null, dstep:0, projects:[], view:'map', screen:'home', topics:[], topic:null, r:null, step:0, me:{classCode:'', seat:'', name:''}, myList:[], saveTimer:null, savedAt:'' ,
-  t:{ topics:[], sel:null, resps:[], tab:'map', projects:[], psel:null, devs:[] } };
-try { Object.assign(S.me, JSON.parse(localStorage.getItem('oriai.me') || '{}')); S.view = localStorage.getItem('oriai.view') || 'map'; S.mode = localStorage.getItem('oriai.mode') || 'dev'; } catch(e){}
+const S = { role:'student', mode:'learn', p:null, d:null, dstep:0, projects:[], view:'map', screen:'home', topics:[], topic:null, r:null, step:0, me:{classCode:'', seat:'', name:''}, myList:[], saveTimer:null, savedAt:'' ,
+  t:{ topics:[], sel:null, resps:[], tab:'map', projects:[], psel:null, devs:[], all:null, pall:null },
+  mine:{ r:{}, d:{} }, hc:{}, hcAt:{} };   // mine＝この画面で開いた自分の記入（保存の途中でも、これがいちばん新しい）／hc＝ホームの中身
+(function(){ const b = bootData(); if (b && b.learn && b.dev) { S.hc = { learn:b.learn, dev:b.dev }; S.hcAt = { learn:Date.now(), dev:Date.now() }; dlog('最初のデータを画面に埋めこみで受け取りました'); } })();
+try { Object.assign(S.me, JSON.parse(localStorage.getItem('oriai.me') || '{}')); S.view = localStorage.getItem('oriai.view') || 'map'; S.mode = localStorage.getItem('oriai.mode') || 'learn';
+  S.t.hideList = localStorage.getItem('oriai.hideList') === '1'; S.t.mapW = Number(localStorage.getItem('oriai.mapw')) || 420; } catch(e){}
 
 /* ===== [S11b] 保存の順番 ===== */
 const SAVE_DELAY = IS_GAS ? 5000 : 700;
@@ -480,11 +509,24 @@ function viewPanel(t, options, w){
 }
 
 /* ===== [S13] 生徒の画面 ===== */
+/** 生徒のホームは、前に読んだ中身をすぐ出し、裏で読み直す。変わっていたら描き直す（待ち時間を見せない） */
+async function homeData(key, fetcher, still){
+  const hit = S.hc[key];
+  if (hit && Date.now() - (S.hcAt[key] || 0) < 20000) return hit;   // 読んだばかりなら読み直さない
+  const p = fetcher().then(a => {
+    if (a && a.success) { const changed = JSON.stringify(a) !== JSON.stringify(S.hc[key]); S.hc[key] = a; S.hcAt[key] = Date.now(); if (hit && changed && still()) render(); }
+    return a;
+  });
+  return hit || p;
+}
+const onLearnHome = () => S.role === 'student' && S.screen === 'home' && S.mode !== 'dev';
+const onDevHome = () => S.role === 'student' && S.screen === 'home' && S.mode === 'dev';
 async function studentHome(){
-  await flushSave();
-  const a = await Api.getLearnHome();
+  flushSave();   // 保存は裏で続ける（待たない）。一覧の状態は手元の記入で上書きする
+  const a = await homeData('learn', () => Api.getLearnHome(), onLearnHome);
+  if (!(S.hc || {}).dev) homeData('dev', () => Api.getDevHome(), onDevHome);   // もう1つのタブも先に読んでおく
   S.topics = (a.topics || []).filter(classMatch); S.myList = a.list || [];
-  const st = id => { const m = S.myList.find(x => x.topicId === id); return m ? m.status : 'まだ'; };
+  const st = id => { const m = S.mine.r[id] || S.myList.find(x => x.topicId === id); return m ? m.status : 'まだ'; };
   app.innerHTML = modeTabs() + `
     <div class="who"><div><label>組</label><input class="f" id="mc" value="${esc(S.me.classCode)}" placeholder="1-1"></div>
       <div><label>番号</label><input class="f" id="ms" value="${esc(S.me.seat)}" inputmode="numeric"></div>
@@ -504,12 +546,24 @@ async function studentHome(){
 async function openTopic(id){
   if (!S.me.name) { alert('先に組・番号・名前を書いてください'); document.getElementById('mn').focus(); return; }
   S.topic = S.topics.find(t => t.topicId === id);
-  await flushSave();
-  const res = await Api.getMyResponse(id);
-  if (!res.success) return; // 読めないまま空の用紙を開くと、保存で前の内容を消してしまう
-  S.r = res.response || { topicId:id, options:[{name:'',note:''},{name:'',note:''}], user:'', situation:'', weight:null, chosen:null, reason:'', idea:'', status:'書きかけ' };
-  S.step = res.response ? 1 : 0; S.screen = 'work'; S.savedAt = res.response ? '保存ずみ ' + res.response.updatedAt.slice(11) : '';
+  const found = await myRecord('r', 'learn', 'topicId', id, () => Api.getMyResponse(id), res => res.response);
+  if (found === undefined) return; // 読めないまま空の用紙を開くと、保存で前の内容を消してしまう
+  S.r = found || { topicId:id, options:[{name:'',note:''},{name:'',note:''}], user:'', situation:'', weight:null, chosen:null, reason:'', idea:'', status:'書きかけ' };
+  S.mine.r[id] = S.r;
+  S.step = found ? 1 : 0; S.screen = 'work'; S.savedAt = found && found.updatedAt ? '保存ずみ ' + found.updatedAt.slice(11) : '';
   render();
+}
+/**
+ * 自分の記入を探す：①この画面で開いたもの ②ホームで読んだ一覧（中身ごと届いている）③無ければサーバーへ。
+ * 返り値：記入／null（まだ書いていない）／undefined（読めなかった）
+ */
+async function myRecord(kind, homeKey, idKey, id, fetcher, pick){
+  if (S.mine[kind][id]) return S.mine[kind][id];
+  const h = (S.hc || {})[homeKey];
+  if (h && h.full) { const m = (h.list || []).find(x => x[idKey] === id); return m ? JSON.parse(JSON.stringify(m)) : null; }
+  await flushSave();
+  const res = await fetcher();
+  return res.success ? (pick(res) || null) : undefined;
 }
 function filled(){ return S.r.options.filter(o => o.name && o.name.trim()); }
 function stepDone(i){ const r = S.r;
@@ -613,12 +667,62 @@ function showExample(t){
 }
 
 /* ===== [S14] 先生の画面 ===== */
+/** 組-番の表示。組が空なら番号だけ */
+function seatLabel(r){ return r.classCode ? r.classCode + '-' + r.seat : r.seat; }
+/** 先生の画面の並び：左の一覧をしまう／出す、地図と一覧のあいだのつまみで幅を変える（ドラッグ・矢印キー・ダブルクリックで元に戻す） */
+function teacherLayout(kind){
+  const grid = app.querySelector('.tgrid'), btn = document.getElementById('tgl'), box = app.querySelector('.cls');
+  const keep = (k, v) => { try { localStorage.setItem(k, v); } catch(e){} };
+  const fit = w => {
+    if (!box || box.clientWidth < 700) return;                 // 1列に並ぶ狭い画面では幅を変えない
+    S.t.mapW = Math.round(Math.max(260, Math.min(w, box.clientWidth - 16 - 300)));
+    box.style.setProperty('--mapw', S.t.mapW + 'px');
+    const sp = box.querySelector('.split'); if (sp) sp.setAttribute('aria-valuenow', String(S.t.mapW));
+  };
+  const paint = () => {
+    grid.classList.toggle('nolist', !!S.t.hideList);
+    btn.textContent = S.t.hideList ? kind + 'の一覧を出す' : kind + 'の一覧をしまう';
+    btn.setAttribute('aria-expanded', String(!S.t.hideList));
+    fit(S.t.mapW);
+  };
+  btn.onclick = () => { S.t.hideList = !S.t.hideList; keep('oriai.hideList', S.t.hideList ? '1' : ''); paint(); };
+  const sp = box && box.querySelector('.split');
+  if (sp) {
+    sp.onpointerdown = e => {
+      e.preventDefault(); sp.setPointerCapture(e.pointerId); sp.classList.add('drag');
+      const x0 = e.clientX, w0 = S.t.mapW;
+      sp.onpointermove = ev => fit(w0 + ev.clientX - x0);
+      sp.onpointerup = sp.onpointercancel = () => { sp.onpointermove = null; sp.classList.remove('drag'); keep('oriai.mapw', String(S.t.mapW)); };
+    };
+    sp.onkeydown = e => {
+      const step = { ArrowLeft:-40, ArrowRight:40 }[e.key]; if (!step) return;
+      e.preventDefault(); fit(S.t.mapW + step); keep('oriai.mapw', String(S.t.mapW));
+    };
+    sp.ondblclick = () => { fit(420); keep('oriai.mapw', '420'); };
+  }
+  paint();
+}
+const SPLIT = '<div class="split" role="separator" aria-orientation="vertical" aria-label="左と右の幅を変える（矢印キーでも動かせます。ダブルクリックで元に戻ります）" title="ドラッグで幅を変える・ダブルクリックで元に戻す" tabindex="0"></div>';
+
+/**
+ * 先生の画面：前に読んだ一覧と記入（全部のお題ぶん）をすぐ出し、裏で読み直す。変わっていたら描き直す。
+ * お題を切りかえても、取りに行くのを待たない
+ */
 async function teacherHome(){
-  const res = await Api.teacherTopics(); S.t.topics = res.topics || [];
-  if (!S.t.sel && S.t.topics.length) S.t.sel = S.t.topics[0].topicId;
-  if (S.t.sel) S.t.resps = (await Api.teacherResponses(S.t.sel)).responses || [];
+  if (S.t.all) drawTeacherHome();
+  const res = await Api.teacherTopics(S.t.sel || '');   // 一覧と記入を1回で
+  if (!res.success || S.role !== 'teacher' || S.mode === 'dev') return;
+  const sig = JSON.stringify([res.topics, res.all || res.responses]), first = !S.t.all;
+  if (!first && sig === S.t.sig) return;
+  S.t.sig = sig; S.t.topics = res.topics || []; S.t.all = res.all || res.responses || [];
+  if (!S.t.sel) S.t.sel = res.sel;
+  drawTeacherHome();
+}
+function drawTeacherHome(){
+  if (!S.t.topics.some(x => x.topicId === S.t.sel)) S.t.sel = S.t.topics[0] ? S.t.topics[0].topicId : null;
+  S.t.resps = S.t.all.filter(r => r.topicId === S.t.sel);
   const t = S.t.topics.find(x => x.topicId === S.t.sel);
-  app.innerHTML = modeTabs() + `<div class="tgrid"><div class="tlist"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="font-size:16px">お題</h2><button class="quiet" id="newt">＋ つくる</button></div>
+  app.innerHTML = modeTabs() + `<div class="tgrid${S.t.hideList ? ' nolist' : ''}"><div class="tlist"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="font-size:16px">お題</h2><button class="quiet" id="newt">＋ つくる</button></div>
       ${S.t.topics.map(x => `<button data-t="${esc(x.topicId)}" class="${x.topicId === S.t.sel ? 'on' : ''}"><b>${esc(x.title)}</b> <span class="tag">${esc(x.kind)}</span>${x.open ? '' : ' <span class="tag">配っていない</span>'}<br>
         <span class="muted"><span class="tx">${esc(x.axisX)}</span> と <span class="ty">${esc(x.axisY)}</span>　提出 ${x.sent}・書きかけ ${x.draft}</span></button>`).join('')}</div>
     <div id="tmain"></div></div>`;
@@ -629,10 +733,10 @@ async function teacherHome(){
 function teacherTopic(t){
   const rs = S.t.resps, sent = rs.filter(r => r.status === '提出');
   const cloud = sent.filter(r => r.chosen !== null && r.options[r.chosen] && r.options[r.chosen].x)
-    .map(r => ({ x:r.options[r.chosen].x, y:r.options[r.chosen].y, w:r.weight, label: r.classCode + '-' + r.seat + ' ' + r.name + '：' + r.options[r.chosen].name }));
+    .map(r => ({ x:r.options[r.chosen].x, y:r.options[r.chosen].y, w:r.weight, label: seatLabel(r) + ' ' + r.name + '：' + r.options[r.chosen].name }));
   const bins = [1,0.75,0.5,0.25,0].map(w => sent.filter(r => r.weight === w).length), mx = Math.max(1, ...bins);
   const diff = sent.filter(r => r.weight !== null && !bestUnderWeight(r.options, r.weight).best.includes(r.chosen)).length;
-  tmain.innerHTML = `<div class="panel"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="font-size:18px">${esc(t.title)}</h2><span class="tag">${esc(t.kind)}</span>
+  tmain.innerHTML = `<div class="panel"><div class="thead"><button class="quiet" id="tgl" type="button"></button><h2 style="font-size:18px">${esc(t.title)}</h2><span class="tag">${esc(t.kind)}</span>
       <button class="quiet" id="edt" style="margin-left:auto">お題を直す</button></div>
       <p class="muted" style="margin:4px 0">${esc(t.scene)}</p>
       <div class="kpis"><span>提出 <b>${sent.length}</b></span><span>書きかけ <b>${rs.length - sent.length}</b></span><span>点が最高でない案を選んだ <b>${diff}</b></span></div></div>
@@ -640,15 +744,16 @@ function teacherTopic(t){
         <p class="muted" style="margin:4px 0 0">点＝一人が選んだ案。<span class="tx">青</span>＝${esc(t.axisX)}を重く／<span class="ty">橙</span>＝${esc(t.axisY)}を重く／灰＝半々。点にふれると名前。</p>
         <h3 style="margin-top:12px">どちらを重く見たか</h3><div class="bars">${bins.map(n => `<div style="height:${n / mx * 100}%" title="${n}人"></div>`).join('')}</div>
         <div class="barl">${weightLabels(t).map((x,i) => `<span>${esc(x.t)}<br>${bins[i]}人</span>`).join('')}</div></div>
-      <div class="panel" style="overflow-x:auto"><h3>一覧（行を押すと全部見られます）</h3><table class="tbl"><tr><th>組-番</th><th>名前</th><th>使う人・場面</th><th>重み</th><th>選んだ案</th><th>理由</th><th>状態</th></tr>
-        ${rs.slice().sort((a,b) => (a.classCode + a.seat.padStart(3,'0')).localeCompare(b.classCode + b.seat.padStart(3,'0'))).map(r => `<tr class="click" data-r="${esc(r.responseId)}"><td>${esc(r.classCode)}-${esc(r.seat)}</td><td>${esc(r.name)}</td>
+      ${SPLIT}<div class="panel" style="overflow-x:auto"><h3>一覧（行を押すと全部見られます）</h3><table class="tbl"><tr><th>組-番</th><th>名前</th><th>使う人・場面</th><th>重み</th><th>選んだ案</th><th>理由</th><th>状態</th></tr>
+        ${rs.slice().sort((a,b) => (a.classCode + a.seat.padStart(3,'0')).localeCompare(b.classCode + b.seat.padStart(3,'0'))).map(r => `<tr class="click" data-r="${esc(r.responseId)}"><td>${esc(seatLabel(r))}</td><td>${esc(r.name)}</td>
           <td>${esc(r.user)}<div class="muted">${esc(r.situation)}</div></td><td>${esc(wText(t, r.weight))}</td>
           <td>${r.chosen !== null && r.options[r.chosen] ? MARK[r.chosen] + ' ' + esc(r.options[r.chosen].name) : '-'}</td><td>${esc(r.reason)}</td><td>${esc(r.status)}</td></tr>`).join('')}</table></div></div>`;
   edt.onclick = () => topicEditor(t);
+  teacherLayout('お題');
   tmain.querySelectorAll('[data-r]').forEach(tr => tr.onclick = () => { const r = rs.find(x => x.responseId === tr.dataset.r); showResponse(t, r); });
 }
 function showResponse(t, r){
-  drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc">とじる</button><h3 style="font-size:17px">${esc(r.classCode)}-${esc(r.seat)} ${esc(r.name)}</h3><p class="muted">${esc(r.status)}・${esc(r.updatedAt)}</p>
+  drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc">とじる</button><h3 style="font-size:17px">${esc(seatLabel(r))} ${esc(r.name)}</h3><p class="muted">${esc(r.status)}・${esc(r.updatedAt)}</p>
     ${viewTable(t, r.options, r.weight)}<div style="margin-top:10px">${viewSVGMap(t, r.options, r.weight)}</div>
     <p><b>だれが・どんな場面：</b>${esc(r.user)}／${esc(r.situation)}<br><b>重み：</b>${esc(wText(t, r.weight))}　<b>選んだ案：</b>${r.chosen !== null ? MARK[r.chosen] + ' ' + esc(r.options[r.chosen].name) : '-'}<br>
     <b>理由：</b>${esc(r.reason)}<br><b>両方を良くする工夫：</b>${esc(r.idea) || '（なし）'}</p></div></div>`;
@@ -674,7 +779,13 @@ function topicEditor(t){
   es.onclick = async () => {
     if (!e1.value.trim() || !e4.value.trim() || !e6.value.trim()) { alert('お題と2つの視点は必ず書いてください'); return; }
     const nt = { topicId:t.topicId, title:e1.value.trim(), kind:e2.value, scene:e3.value.trim(), axisX:e4.value.trim(), hintX:e5.value.trim(), axisY:e6.value.trim(), hintY:e7.value.trim(), classCode:e8.value.trim(), open:e9.checked };
-    const res = await Api.saveTopic(nt); drawer.innerHTML = ''; S.t.sel = res.topicId; teacherHome(); };
+    es.disabled = true; es.textContent = '保存しています…';
+    const res = await Api.saveTopic(nt);
+    if (!res.success) { es.disabled = false; es.textContent = '保存する'; return; }
+    drawer.innerHTML = ''; S.t.sel = res.topicId;
+    const i = S.t.topics.findIndex(x => x.topicId === res.topicId);   // 手元の一覧にもすぐ入れる（読み直しは裏で）
+    if (i >= 0) Object.assign(S.t.topics[i], nt); else S.t.topics.push(Object.assign({ sent:0, draft:0 }, nt, { topicId:res.topicId }));
+    teacherHome(); };
 }
 
 /* ===== [S16] 開発モード（先生が出した技術の課題で、生徒が自分でトレードオフを決めて課題をつくる） ===== */
@@ -705,9 +816,11 @@ function markSteps(done){
 }
 
 async function studentDevHome(){
-  await flushSave();
-  const a = await Api.getDevHome();
-  S.projects = (a.projects || []).filter(classMatch); const mine = a.list || [];
+  flushSave();
+  const a = await homeData('dev', () => Api.getDevHome(), onDevHome);
+  if (!(S.hc || {}).learn) homeData('learn', () => Api.getLearnHome(), onLearnHome);
+  S.projects = (a.projects || []).filter(classMatch);
+  const mine = (a.list || []).map(x => S.mine.d[x.projectId] || x).concat(Object.values(S.mine.d).filter(m => !(a.list || []).some(x => x.projectId === m.projectId)));
   const st = id => { const m = mine.find(x => x.projectId === id); return m ? 'いま：' + devStage(m) : 'まだ書いていない'; };
   app.innerHTML = modeTabs() + `
     <div class="who"><div><label>組</label><input class="f" id="mc" value="${esc(S.me.classCode)}" placeholder="1-1"></div>
@@ -727,12 +840,12 @@ async function studentDevHome(){
 async function openProject(id){
   if (!S.me.name) { alert('先に組・番号・名前を書いてください'); document.getElementById('mn').focus(); return; }
   S.p = S.projects.find(p => p.projectId === id);
-  await flushSave();
-  const res = await Api.getMyDev(id);
-  if (!res.success) return; // 読めないまま空の用紙を開くと、保存で前の内容を消してしまう
-  S.d = res.dev || newDev(id);
-  S.dstep = res.dev ? devStageKey(S.d) : 0; S.screen = 'dev';
-  S.savedAt = res.dev ? '保存ずみ ' + res.dev.updatedAt.slice(11) : '';
+  const found = await myRecord('d', 'dev', 'projectId', id, () => Api.getMyDev(id), res => res.dev);
+  if (found === undefined) return; // 読めないまま空の用紙を開くと、保存で前の内容を消してしまう
+  S.d = found || newDev(id);
+  S.mine.d[id] = S.d;
+  S.dstep = found ? devStageKey(S.d) : 0; S.screen = 'dev';
+  S.savedAt = found && found.updatedAt ? '保存ずみ ' + found.updatedAt.slice(11) : '';
   render();
 }
 function devWork(){
@@ -912,11 +1025,20 @@ function devStep(){
 
 /* --- 先生：開発モード --- */
 async function teacherDevHome(){
-  const res = await Api.teacherProjects(); S.t.projects = res.projects || [];
-  if (!S.t.psel && S.t.projects.length) S.t.psel = S.t.projects[0].projectId;
-  S.t.devs = S.t.psel ? ((await Api.teacherDevs(S.t.psel)).devs || []) : [];
+  if (S.t.pall) drawTeacherDevHome();
+  const res = await Api.teacherProjects(S.t.psel || '');   // 一覧と記入を1回で
+  if (!res.success || S.role !== 'teacher' || S.mode !== 'dev') return;
+  const sig = JSON.stringify([res.projects, res.all || res.devs]), first = !S.t.pall;
+  if (!first && sig === S.t.psig) return;
+  S.t.psig = sig; S.t.projects = res.projects || []; S.t.pall = res.all || res.devs || [];
+  if (!S.t.psel) S.t.psel = res.sel;
+  drawTeacherDevHome();
+}
+function drawTeacherDevHome(){
+  if (!S.t.projects.some(x => x.projectId === S.t.psel)) S.t.psel = S.t.projects[0] ? S.t.projects[0].projectId : null;
+  S.t.devs = S.t.pall.filter(d => d.projectId === S.t.psel);
   const p = S.t.projects.find(x => x.projectId === S.t.psel);
-  app.innerHTML = modeTabs() + `<div class="tgrid"><div class="tlist"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="font-size:16px">技術の課題</h2><button class="quiet" id="newp">＋ つくる</button></div>
+  app.innerHTML = modeTabs() + `<div class="tgrid${S.t.hideList ? ' nolist' : ''}"><div class="tlist"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="font-size:16px">技術の課題</h2><button class="quiet" id="newp">＋ つくる</button></div>
       ${S.t.projects.map(x => `<button data-pp="${esc(x.projectId)}" class="${x.projectId === S.t.psel ? 'on' : ''}"><b>${esc(x.title)}</b>${x.open ? '' : ' <span class="tag">配っていない</span>'}<br>
         <span class="muted">課題を提出 ${x.fixed}・書いている人 ${x.total}</span></button>`).join('')}</div><div id="tmain"></div></div>`;
   app.querySelectorAll('[data-pp]').forEach(b => b.onclick = () => { S.t.psel = b.dataset.pp; teacherDevHome(); });
@@ -929,7 +1051,7 @@ function teacherProject(p){
   const pl = Object.entries(pairs).sort((a,b) => b[1] - a[1]), mx = Math.max(1, ...pl.map(x => x[1]));
   const stages = DEV_STEPS.slice(1).map((n, i) => [n, ds.filter(d => devStageKey(d) === i + 1).length]);
   const sorted = ds.slice().sort((a,b) => (a.classCode + a.seat.padStart(3,'0')).localeCompare(b.classCode + b.seat.padStart(3,'0')));
-  tmain.innerHTML = `<div class="panel"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="font-size:18px">${esc(p.title)}</h2><span class="tag">開発</span>
+  tmain.innerHTML = `<div class="panel"><div class="thead"><button class="quiet" id="tgl" type="button"></button><h2 style="font-size:18px">${esc(p.title)}</h2><span class="tag">開発</span>
       <button class="quiet" id="edp" style="margin-left:auto">課題を直す</button></div>
       <p class="muted" style="margin:4px 0">${esc(p.desc)}</p><div class="constraint" style="margin:6px 0"><b>条件</b>　${esc(p.constraints)}</div>
       <div class="kpis"><span>課題を提出 <b>${fixed.length}</b></span><span>書きかけ <b>${ds.length - fixed.length}</b></span><span>開発の記録あり <b>${logged.length}</b></span></div></div>
@@ -937,16 +1059,17 @@ function teacherProject(p){
         ${pl.length ? pl.map(([k,n]) => `<div class="pair"><span>${esc(k)}</span><div class="pbar"><div style="width:${n / mx * 100}%"></div></div><b>${n}人</b></div>`).join('') : '<p class="muted">まだだれも選んでいません</p>'}
         <p class="muted" style="margin:6px 0 0">同じ課題でも、人によってぶつかり合う視点がちがう。授業で紹介する組み合わせを選ぶときに。</p>
         <h3 style="margin-top:14px">いまの段</h3>${stages.map(([n,c]) => `<div class="pair"><span>${esc(n)}</span><div class="pbar"><div style="width:${ds.length ? c / ds.length * 100 : 0}%"></div></div><b>${c}人</b></div>`).join('')}</div>
-      <div class="panel" style="overflow-x:auto"><h3>一覧（行を押すと全部見られます）</h3><table class="tbl"><tr><th>組-番</th><th>名前</th><th>使う人</th><th>トレードオフ</th><th>課題文</th><th>版</th><th>いまの段</th></tr>
-        ${sorted.map(d => `<tr class="click" data-dv="${esc(d.devId)}"><td>${esc(d.classCode)}-${esc(d.seat)}</td><td>${esc(d.name)}</td><td>${esc(d.user)}</td>
+      ${SPLIT}<div class="panel" style="overflow-x:auto"><h3>一覧（行を押すと全部見られます）</h3><table class="tbl"><tr><th>組-番</th><th>名前</th><th>使う人</th><th>トレードオフ</th><th>課題文</th><th>版</th><th>いまの段</th></tr>
+        ${sorted.map(d => `<tr class="click" data-dv="${esc(d.devId)}"><td>${esc(seatLabel(d))}</td><td>${esc(d.name)}</td><td>${esc(d.user)}</td>
           <td>${d.axisX ? `<span class="tx">${esc(d.axisX)}</span> × <span class="ty">${esc(d.axisY)}</span>` : '-'}</td>
           <td>${esc(d.task.length > 50 ? d.task.slice(0, 50) + '…' : d.task)}</td><td>${d.cycles.length}</td><td>${esc(devStage(d))}</td></tr>`).join('')}</table></div></div>`;
   edp.onclick = () => projectEditor(p);
+  teacherLayout('課題');
   tmain.querySelectorAll('[data-dv]').forEach(tr => tr.onclick = () => showDev(p, ds.find(x => x.devId === tr.dataset.dv)));
 }
 function showDev(p, d){
   const ax = devAx(d);
-  drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc">とじる</button><h3 style="font-size:17px">${esc(d.classCode)}-${esc(d.seat)} ${esc(d.name)}</h3>
+  drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc">とじる</button><h3 style="font-size:17px">${esc(seatLabel(d))} ${esc(d.name)}</h3>
     <p class="muted">${esc(d.status)}・${esc(d.updatedAt)}・いま：${esc(devStage(d))}</p>
     <h3 style="margin-top:10px">1 だれの困りごと</h3><p style="margin:4px 0">${esc(d.user)}／${esc(d.scene)}<br><b>理想：</b>${esc(d.ideal)}<br><b>現状：</b>${esc(d.now)}</p>
     <h3 style="margin-top:10px">2 トレードオフ</h3><p style="margin:4px 0"><span class="tx">${esc(ax.axisX)}</span> × <span class="ty">${esc(ax.axisY)}</span><br>${esc(d.conflict)}<br>
@@ -974,7 +1097,13 @@ function projectEditor(p){
     const cands = q4.value.split(/[、,，\n]+/).map(x => x.trim()).filter(Boolean);
     if (!q1.value.trim() || cands.length < 2) { alert('課題の名前と、視点の候補を2つ以上書いてください'); return; }
     const np = { projectId:p.projectId, title:q1.value.trim(), desc:q2.value.trim(), constraints:q3.value.trim(), candidates:cands, classCode:q5.value.trim(), open:q6.checked };
-    const res = await Api.saveProject(np); drawer.innerHTML = ''; S.t.psel = res.projectId; teacherDevHome(); };
+    qs.disabled = true; qs.textContent = '保存しています…';
+    const res = await Api.saveProject(np);
+    if (!res.success) { qs.disabled = false; qs.textContent = '保存する'; return; }
+    drawer.innerHTML = ''; S.t.psel = res.projectId;
+    const i = S.t.projects.findIndex(x => x.projectId === res.projectId);
+    if (i >= 0) Object.assign(S.t.projects[i], np); else S.t.projects.push(Object.assign({ total:0, fixed:0 }, np, { projectId:res.projectId }));
+    teacherDevHome(); };
 }
 
 /* ===== [S14b] 先生の画面に入る（パスワード。本番だけ。タブを閉じると出たことになる） ===== */
@@ -983,7 +1112,7 @@ function loadTeacherToken(){ try { S.t.token = sessionStorage.getItem(TOKEN_KEY)
 function setTeacher(token){
   S.t.token = token || '';
   try { if (token) sessionStorage.setItem(TOKEN_KEY, token); else sessionStorage.removeItem(TOKEN_KEY); } catch(e){}
-  S.role = token ? 'teacher' : 'student'; S.screen = 'home'; S.t.sel = null; S.t.psel = null;
+  S.role = token ? 'teacher' : 'student'; S.screen = 'home'; S.t.sel = null; S.t.psel = null; S.t.all = null; S.t.pall = null; S.t.sig = ''; S.t.psig = '';
 }
 function showLogin(){
   drawer.innerHTML = `<div class="drawer"><div><button class="quiet close" id="dc" type="button">とじる</button><h3 style="font-size:17px">先生の画面に入る</h3>
@@ -1021,7 +1150,7 @@ document.querySelectorAll('#demo [data-role]').forEach(b => b.onclick = () => { 
 document.querySelectorAll('#demo [data-view]').forEach(b => b.onclick = () => { S.view = b.dataset.view; try { localStorage.setItem('oriai.view', S.view); } catch(e){}
   if (S.role === 'student' && S.screen === 'work') { render(); } else render(); });
 document.querySelector('#demo [data-reset]').onclick = async () => { if (!confirm('見本データを入れ直します。この端末で書いたものは消えます。')) return;
-  await MockApi.reset(); S.screen = 'home'; S.t.sel = null; S.t.psel = null; render(); };
+  await MockApi.reset(); S.screen = 'home'; S.t.sel = null; S.t.psel = null; S.t.all = null; S.t.pall = null; S.t.sig = ''; S.t.psig = ''; S.hc = {}; S.hcAt = {}; S.mine = { r:{}, d:{} }; render(); };
 if (IS_GAS) {
   document.body.classList.add('gas');
   document.querySelector('header.app .logo small').textContent = '2つの視点で検討する';
